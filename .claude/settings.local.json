@@ -8,7 +8,9 @@
       "Bash(docker compose:*)",
       "Bash(python:*)",
       "Bash(docker exec:*)",
-      "Bash(docker logs:*)"
+      "Bash(docker logs:*)",
+      "Bash(find:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": [],

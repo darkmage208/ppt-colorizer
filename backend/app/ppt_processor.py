@@ -197,16 +197,19 @@ class PPTProcessor:
         
         rsid_str = str(rsid).strip()
         
-        for slide in enumerate(self.presentation.slides):
-            for shape in enumerate(slide.shapes):
+        for slide_idx, slide in enumerate(self.presentation.slides):
+            for shape_idx, shape in enumerate(slide.shapes):
                 
                 # Handle individual shapes as before
                 if hasattr(shape, 'text_frame') and shape.text_frame:
-                    text_content = shape.text_frame.text.strip()
-                    if text_content == rsid_str:
-                        if new_color:
-                            shape.fill.solid()
-                            shape.fill.fore_color.rgb = new_color
+                    try:
+                        text_content = shape.text_frame.text.strip()
+                        if text_content == rsid_str:
+                            if new_color:
+                                shape.fill.solid()
+                                shape.fill.fore_color.rgb = new_color
+                    except Exception as e:
+                        logger.warning(f"Error modifying group shape: {e}")
 
                 elif hasattr(shape, 'shape_type') and shape.shape_type == 6:  # Group
                     try:
@@ -219,6 +222,20 @@ class PPTProcessor:
                                     if new_color:
                                         sub_shape.fill.solid()
                                         sub_shape.fill.fore_color.rgb = new_color
+                            elif hasattr(sub_shape, 'shape_type') and sub_shape.shape_type == 6:  # Group
+                                try:
+                                    # Access the group's shapes collection
+                                    for sub_sub_shape in sub_shape.shapes:
+                                        if hasattr(sub_sub_shape, 'text_frame') and sub_sub_shape.text_frame:
+                                            text_content = sub_sub_shape.text_frame.text.strip()
+                                            if text_content == rsid_str:
+                                                # Force fill color change
+                                                if new_color:
+                                                    sub_sub_shape.fill.solid()
+                                                    sub_sub_shape.fill.fore_color.rgb = new_color
+                            
+                                except Exception as e:
+                                    logger.warning(f"Error modifying group shape: {e}")
                                     
                     except Exception as e:
                         logger.warning(f"Error modifying group shape: {e}")
@@ -268,7 +285,7 @@ class PPTProcessor:
             # Step 3: Find RSID in TXT data and get RESULT value
             # Step 4: Find which column contains the RESULT value and get color
             color = self.find_color_for_rsid(rsid)
-            logger.info("Detected Color: {color}")
+            
             if color is None:
                 results['skipped'] += 1
                 continue
