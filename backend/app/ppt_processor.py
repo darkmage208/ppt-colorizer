@@ -140,35 +140,89 @@ class PPTProcessor:
     def find_text_boxes_with_rsid(self, rsid: str) -> List[Tuple[int, int, object]]:
         """
         Find text boxes in PowerPoint that contain the exact RSID text
+        Handles both individual shapes and shapes within groups
         """
         found_boxes = []
         rsid_str = str(rsid).strip()
         
         for slide_idx, slide in enumerate(self.presentation.slides):
             for shape_idx, shape in enumerate(slide.shapes):
-                if hasattr(shape, 'text_frame') and shape.text_frame:
-                    text_content = shape.text_frame.text.strip()
-                    if text_content == rsid_str:
-                        found_boxes.append((slide_idx, shape_idx, shape))
-                        logger.debug(f"Found RSID {rsid} on slide {slide_idx+1}")
+                # Check if it's a group
+                if hasattr(shape, 'shape_type') and shape.shape_type == 6:  # MSO_SHAPE_TYPE.GROUP
+                    # Search within the group
+                    found_in_group = self._search_in_group(shape, rsid_str, slide_idx, shape_idx)
+                    found_boxes.extend(found_in_group)
+                else:
+                    # Regular shape - check for text
+                    if hasattr(shape, 'text_frame') and shape.text_frame:
+                        text_content = shape.text_frame.text.strip()
+                        if text_content == rsid_str:
+                            found_boxes.append((slide_idx, shape_idx, shape))
+                            logger.debug(f"Found RSID {rsid} on slide {slide_idx+1}")
         
         if not found_boxes:
             logger.warning(f"No text box found for RSID {rsid}")
         
         return found_boxes
+
+    def _search_in_group(self, group_shape, rsid_str: str, slide_idx: int, group_idx: int) -> List[Tuple[int, int, object]]:
+        """
+        Search for RSID text within a grouped shape
+        """
+        found_in_group = []
+        
+        try:
+            for sub_shape_idx, sub_shape in enumerate(group_shape.shapes):
+                # Check if sub-shape has text
+                if hasattr(sub_shape, 'text_frame') and sub_shape.text_frame:
+                    text_content = sub_shape.text_frame.text.strip()
+                    if text_content == rsid_str:
+                        found_in_group.append((slide_idx, group_idx, sub_shape))
+                        logger.debug(f"Found RSID {rsid_str} in group on slide {slide_idx+1}")
+                
+                # Handle nested groups (groups within groups)
+                elif hasattr(sub_shape, 'shape_type') and sub_shape.shape_type == 6:
+                    nested_found = self._search_in_group(sub_shape, rsid_str, slide_idx, group_idx)
+                    found_in_group.extend(nested_found)
+                    
+        except Exception as e:
+            logger.warning(f"Error searching in group on slide {slide_idx+1}: {e}")
+        
+        return found_in_group
     
-    def log_all_textboxes_sample(self):
-        """Log a sample of text boxes for debugging"""
-        sample_texts = []
-        for slide_idx, slide in enumerate(self.presentation.slides[:3]):  # First 3 slides
-            for shape_idx, shape in enumerate(slide.shapes[:5]):  # First 5 shapes
+    def find_and_modify_text_in_group(self, rsid: str, new_color):
+        """
+        Find and modify text within groups by accessing the underlying XML
+        """
+        
+        rsid_str = str(rsid).strip()
+        
+        for slide in enumerate(self.presentation.slides):
+            for shape in enumerate(slide.shapes):
+                
+                # Handle individual shapes as before
                 if hasattr(shape, 'text_frame') and shape.text_frame:
-                    text = shape.text_frame.text.strip()
-                    if text and len(text) < 20:  # Only short texts (likely RSIDs)
-                        sample_texts.append(f"Slide {slide_idx+1}: '{text}'")
-        if sample_texts:
-            logger.debug(f"Sample text boxes: {sample_texts[:10]}")
-    
+                    text_content = shape.text_frame.text.strip()
+                    if text_content == rsid_str:
+                        if new_color:
+                            shape.fill.solid()
+                            shape.fill.fore_color.rgb = new_color
+
+                elif hasattr(shape, 'shape_type') and shape.shape_type == 6:  # Group
+                    try:
+                        # Access the group's shapes collection
+                        for sub_shape in shape.shapes:
+                            if hasattr(sub_shape, 'text_frame') and sub_shape.text_frame:
+                                text_content = sub_shape.text_frame.text.strip()
+                                if text_content == rsid_str:
+                                    # Force fill color change
+                                    if new_color:
+                                        sub_shape.fill.solid()
+                                        sub_shape.fill.fore_color.rgb = new_color
+                                    
+                    except Exception as e:
+                        logger.warning(f"Error modifying group shape: {e}")
+
     def apply_background_color(self, shape, color: RGBColor):
         if hasattr(shape, 'fill'):
             shape.fill.solid()
@@ -214,21 +268,23 @@ class PPTProcessor:
             # Step 3: Find RSID in TXT data and get RESULT value
             # Step 4: Find which column contains the RESULT value and get color
             color = self.find_color_for_rsid(rsid)
+            logger.info("Detected Color: {color}")
             if color is None:
                 results['skipped'] += 1
                 continue
             
-            # Step 5: Find text box in PPT that exactly matches RSID
-            text_boxes = self.find_text_boxes_with_rsid(rsid)
-            if not text_boxes:
-                results['skipped'] += 1
-                continue
+            # # Step 5: Find text box in PPT that exactly matches RSID
+            # text_boxes = self.find_text_boxes_with_rsid(rsid)
+            # if not text_boxes:
+            #     results['skipped'] += 1
+            #     continue
             
-            # Step 6: Apply color to text box background
-            for slide_idx, shape_idx, shape in text_boxes:
-                self.apply_background_color(shape, color)
-                results['colored'] += 1
-                logger.debug(f"Applied color to RSID {rsid} on slide {slide_idx+1}")
+            # # Step 6: Apply color to text box background
+            # for slide_idx, shape_idx, shape in text_boxes:
+            #     self.apply_background_color(shape, color)
+            #     results['colored'] += 1
+            #     logger.debug(f"Applied color to RSID {rsid} on slide {slide_idx+1}")
+            self.find_and_modify_text_in_group(rsid, color)
             
             if progress_callback:
                 progress = int((idx + 1) / total_records * 100)
