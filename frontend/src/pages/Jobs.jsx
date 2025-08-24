@@ -1,22 +1,25 @@
 import { useState, useEffect } from 'react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
-import { Clock, CheckCircle, XCircle, AlertCircle, FileText, Download, Calendar } from 'lucide-react'
+import { Clock, CheckCircle, XCircle, AlertCircle, FileText, Download, Calendar, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 
 const Jobs = () => {
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
+  const [sortBy, setSortBy] = useState('created_at')
+  const [sortOrder, setSortOrder] = useState('desc')
+  const [deletingJob, setDeletingJob] = useState(null)
 
   useEffect(() => {
     fetchJobs()
     const interval = setInterval(fetchJobs, 5000) // Poll every 5 seconds
     return () => clearInterval(interval)
-  }, [])
+  }, [sortBy, sortOrder])
 
   const fetchJobs = async () => {
     try {
-      const response = await api.get('/jobs/?limit=100')
+      const response = await api.get(`/jobs/?limit=100&sort_by=${sortBy}&order=${sortOrder}`)
       setJobs(response.data)
     } catch (error) {
       toast.error('Failed to fetch jobs')
@@ -76,6 +79,41 @@ const Jobs = () => {
     }
   }
 
+  const deleteJob = async (jobId) => {
+    if (!window.confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
+      return
+    }
+    
+    setDeletingJob(jobId)
+    try {
+      await api.delete(`/jobs/${jobId}`)
+      toast.success('Job deleted successfully')
+      await fetchJobs()
+    } catch (error) {
+      toast.error('Failed to delete job')
+    } finally {
+      setDeletingJob(null)
+    }
+  }
+
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortBy(field)
+      setSortOrder('desc')
+    }
+  }
+
+  const getSortIcon = (field) => {
+    if (sortBy !== field) {
+      return <ArrowUpDown className="h-3 w-3 text-gray-400" />
+    }
+    return sortOrder === 'asc' 
+      ? <ArrowUp className="h-3 w-3 text-blue-600" />
+      : <ArrowDown className="h-3 w-3 text-blue-600" />
+  }
+
   const filteredJobs = jobs.filter(job => {
     if (filter === 'all') return true
     return job.status === filter
@@ -99,18 +137,40 @@ const Jobs = () => {
               <p className="text-gray-600">Track all your processing jobs and download results</p>
             </div>
             <div className="flex items-center space-x-4">
-              <label className="text-sm font-medium text-gray-700">Filter by status:</label>
-              <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-1 text-sm"
-              >
-                <option value="all">All Jobs</option>
-                <option value="queued">Queued</option>
-                <option value="processing">Processing</option>
-                <option value="done">Completed</option>
-                <option value="error">Failed</option>
-              </select>
+              <div className="flex items-center space-x-2">
+                <label className="text-sm font-medium text-gray-700">Sort by:</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+                >
+                  <option value="created_at">Date Created</option>
+                  <option value="id">Job ID</option>
+                  <option value="status">Status</option>
+                  <option value="updated_at">Last Updated</option>
+                </select>
+                <button
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  className="p-1 border border-gray-300 rounded hover:bg-gray-50"
+                  title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
+                >
+                  {sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+                </button>
+              </div>
+              <div className="flex items-center space-x-2">
+                <label className="text-sm font-medium text-gray-700">Filter:</label>
+                <select
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+                >
+                  <option value="all">All Jobs</option>
+                  <option value="queued">Queued</option>
+                  <option value="processing">Processing</option>
+                  <option value="done">Completed</option>
+                  <option value="error">Failed</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -119,8 +179,14 @@ const Jobs = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Job ID
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('id')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Job ID</span>
+                    {getSortIcon('id')}
+                  </div>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Template
@@ -131,11 +197,23 @@ const Jobs = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   TXT File
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('status')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Status</span>
+                    {getSortIcon('status')}
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('created_at')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Created</span>
+                    {getSortIcon('created_at')}
+                  </div>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -209,32 +287,46 @@ const Jobs = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {job.status === 'done' ? (
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => downloadFile(job.id, 'pptx')}
-                            className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
-                            title="Download PowerPoint"
-                          >
-                            <FileText className="h-3 w-3 mr-1" />
-                            PPTX
-                          </button>
-                          <button
-                            onClick={() => downloadFile(job.id, 'pdf')}
-                            className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
-                            title="Download PDF"
-                          >
-                            <Download className="h-3 w-3 mr-1" />
-                            PDF
-                          </button>
-                        </div>
-                      ) : job.status === 'processing' ? (
-                        <span className="text-blue-600">Processing...</span>
-                      ) : job.status === 'queued' ? (
-                        <span className="text-yellow-600">In Queue</span>
-                      ) : (
-                        <span className="text-red-600">Failed</span>
-                      )}
+                      <div className="flex items-center space-x-2">
+                        {job.status === 'done' ? (
+                          <>
+                            <button
+                              onClick={() => downloadFile(job.id, 'pptx')}
+                              className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                              title="Download PowerPoint"
+                            >
+                              <FileText className="h-3 w-3 mr-1" />
+                              PPTX
+                            </button>
+                            <button
+                              onClick={() => downloadFile(job.id, 'pdf')}
+                              className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                              title="Download PDF"
+                            >
+                              <Download className="h-3 w-3 mr-1" />
+                              PDF
+                            </button>
+                          </>
+                        ) : job.status === 'processing' ? (
+                          <span className="text-blue-600">Processing...</span>
+                        ) : job.status === 'queued' ? (
+                          <span className="text-yellow-600">In Queue</span>
+                        ) : (
+                          <span className="text-red-600">Failed</span>
+                        )}
+                        <button
+                          onClick={() => deleteJob(job.id)}
+                          disabled={deletingJob === job.id}
+                          className="inline-flex items-center px-2 py-1 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Delete Job"
+                        >
+                          {deletingJob === job.id ? (
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-500"></div>
+                          ) : (
+                            <Trash2 className="h-3 w-3" />
+                          )}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

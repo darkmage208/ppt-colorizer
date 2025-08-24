@@ -10,7 +10,9 @@
       "Bash(docker exec:*)",
       "Bash(docker logs:*)",
       "Bash(find:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm install)"
     ],
     "deny": [],
     "ask": [],

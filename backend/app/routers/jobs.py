@@ -14,6 +14,8 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 def get_jobs(
     skip: int = 0,
     limit: int = 100,
+    sort_by: str = "created_at",
+    order: str = "desc",
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
@@ -21,6 +23,21 @@ def get_jobs(
     
     if current_user.role != models.UserRole.ADMIN:
         query = query.filter(models.Job.user_id == current_user.id)
+    
+    # Apply sorting
+    if sort_by == "id":
+        sort_column = models.Job.id
+    elif sort_by == "status":
+        sort_column = models.Job.status
+    elif sort_by == "updated_at":
+        sort_column = models.Job.updated_at
+    else:  # Default to created_at
+        sort_column = models.Job.created_at
+    
+    if order == "asc":
+        query = query.order_by(sort_column.asc())
+    else:
+        query = query.order_by(sort_column.desc())
     
     jobs = query.offset(skip).limit(limit).all()
     return jobs
@@ -136,11 +153,15 @@ def download_pdf(
 def delete_job(
     job_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin)
+    current_user: models.User = Depends(auth.get_current_active_user)
 ):
     job = db.query(models.Job).filter(models.Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Allow users to delete their own jobs, admins can delete any job
+    if current_user.role != models.UserRole.ADMIN and job.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this job")
     
     if job.output_pptx_path:
         storage.delete_file(job.output_pptx_path)
