@@ -137,59 +137,6 @@ class PPTProcessor:
         logger.debug(f"No color match found for RSID {rsid} with RESULT {result_value}")
         return None
     
-    def find_text_boxes_with_rsid(self, rsid: str) -> List[Tuple[int, int, object]]:
-        """
-        Find text boxes in PowerPoint that contain the exact RSID text
-        Handles both individual shapes and shapes within groups
-        """
-        found_boxes = []
-        rsid_str = str(rsid).strip()
-        
-        for slide_idx, slide in enumerate(self.presentation.slides):
-            for shape_idx, shape in enumerate(slide.shapes):
-                # Check if it's a group
-                if hasattr(shape, 'shape_type') and shape.shape_type == 6:  # MSO_SHAPE_TYPE.GROUP
-                    # Search within the group
-                    found_in_group = self._search_in_group(shape, rsid_str, slide_idx, shape_idx)
-                    found_boxes.extend(found_in_group)
-                else:
-                    # Regular shape - check for text
-                    if hasattr(shape, 'text_frame') and shape.text_frame:
-                        text_content = shape.text_frame.text.strip()
-                        if text_content == rsid_str:
-                            found_boxes.append((slide_idx, shape_idx, shape))
-                            logger.debug(f"Found RSID {rsid} on slide {slide_idx+1}")
-        
-        if not found_boxes:
-            logger.warning(f"No text box found for RSID {rsid}")
-        
-        return found_boxes
-
-    def _search_in_group(self, group_shape, rsid_str: str, slide_idx: int, group_idx: int) -> List[Tuple[int, int, object]]:
-        """
-        Search for RSID text within a grouped shape
-        """
-        found_in_group = []
-        
-        try:
-            for sub_shape_idx, sub_shape in enumerate(group_shape.shapes):
-                # Check if sub-shape has text
-                if hasattr(sub_shape, 'text_frame') and sub_shape.text_frame:
-                    text_content = sub_shape.text_frame.text.strip()
-                    if text_content == rsid_str:
-                        found_in_group.append((slide_idx, group_idx, sub_shape))
-                        logger.debug(f"Found RSID {rsid_str} in group on slide {slide_idx+1}")
-                
-                # Handle nested groups (groups within groups)
-                elif hasattr(sub_shape, 'shape_type') and sub_shape.shape_type == 6:
-                    nested_found = self._search_in_group(sub_shape, rsid_str, slide_idx, group_idx)
-                    found_in_group.extend(nested_found)
-                    
-        except Exception as e:
-            logger.warning(f"Error searching in group on slide {slide_idx+1}: {e}")
-        
-        return found_in_group
-    
     def find_and_modify_text_in_group(self, rsid: str, new_color):
         """
         Find and modify text within groups by accessing the underlying XML
