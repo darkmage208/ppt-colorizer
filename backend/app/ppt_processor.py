@@ -224,7 +224,7 @@ class PPTProcessor:
                                         sub_shape.fill.fore_color.rgb = new_color
                             elif hasattr(sub_shape, 'shape_type') and sub_shape.shape_type == 6:  # Group
                                 try:
-                                    # Access the group's shapes collection
+                                    # Access the group's shapes collection (Level 2)
                                     for sub_sub_shape in sub_shape.shapes:
                                         if hasattr(sub_sub_shape, 'text_frame') and sub_sub_shape.text_frame:
                                             text_content = sub_sub_shape.text_frame.text.strip()
@@ -233,6 +233,19 @@ class PPTProcessor:
                                                 if new_color:
                                                     sub_sub_shape.fill.solid()
                                                     sub_sub_shape.fill.fore_color.rgb = new_color
+                                        elif hasattr(sub_sub_shape, 'shape_type') and sub_sub_shape.shape_type == 6:  # Nested group (Level 3)
+                                            try:
+                                                # Access the nested group's shapes collection
+                                                for sub_sub_sub_shape in sub_sub_shape.shapes:
+                                                    if hasattr(sub_sub_sub_shape, 'text_frame') and sub_sub_sub_shape.text_frame:
+                                                        text_content = sub_sub_sub_shape.text_frame.text.strip()
+                                                        if text_content == rsid_str:
+                                                            # Force fill color change
+                                                            if new_color:
+                                                                sub_sub_sub_shape.fill.solid()
+                                                                sub_sub_sub_shape.fill.fore_color.rgb = new_color
+                                            except Exception as e:
+                                                logger.warning(f"Error modifying nested group shape (Level 3): {e}")
                             
                                 except Exception as e:
                                     logger.warning(f"Error modifying group shape: {e}")
