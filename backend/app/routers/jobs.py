@@ -7,6 +7,9 @@ from ..database import get_db
 from ..storage import storage
 from ..tasks import process_ppt_job
 import io
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -113,6 +116,9 @@ def download_pptx(
     if job.status != models.JobStatus.DONE or not job.output_pptx_path:
         raise HTTPException(status_code=400, detail="PPTX file not ready")
     
+    logger.info(f"Attempting to download PPTX for job {job_id}: {job.output_pptx_path}")
+    logger.info(f"Job details - Template: {job.template.name if job.template else 'None'}, Excel: {job.excel_data.name if job.excel_data else 'None'}, TXT: {job.txt_filename}")
+    
     try:
         file_content = storage.download_file(job.output_pptx_path)
         return StreamingResponse(
@@ -121,6 +127,7 @@ def download_pptx(
             headers={"Content-Disposition": f"attachment; filename=output_{job_id}.pptx"}
         )
     except Exception as e:
+        logger.error(f"Failed to download PPTX for job {job_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to download file: {str(e)}")
 
 @router.get("/{job_id}/download-pdf")
@@ -148,6 +155,72 @@ def download_pdf(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to download file: {str(e)}")
+
+@router.get("/debug/job-details/{job_id}")
+def debug_job_details(
+    job_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_admin)
+):
+    """Debug endpoint to show job details including file paths"""
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    return {
+        'job_id': job.id,
+        'status': job.status.value,
+        'txt_filename': job.txt_filename,
+        'txt_file_path': job.txt_file_path,
+        'output_pptx_path': job.output_pptx_path,
+        'output_pdf_path': job.output_pdf_path,
+        'template': {
+            'id': job.template.id if job.template else None,
+            'name': job.template.name if job.template else None,
+            'filename': job.template.filename if job.template else None,
+            'file_path': job.template.file_path if job.template else None,
+        },
+        'excel_data': {
+            'id': job.excel_data.id if job.excel_data else None,
+            'name': job.excel_data.name if job.excel_data else None,
+            'filename': job.excel_data.filename if job.excel_data else None,
+            'file_path': job.excel_data.file_path if job.excel_data else None,
+        },
+        'user_id': job.user_id,
+        'created_at': job.created_at.isoformat() if job.created_at else None,
+        'updated_at': job.updated_at.isoformat() if job.updated_at else None
+    }
+
+@router.get("/debug/r2-files")
+def debug_r2_files(
+    current_user: models.User = Depends(auth.require_admin)
+):
+    """Debug endpoint to list files in R2 storage"""
+    try:
+        response = storage.client.list_objects_v2(Bucket=storage.bucket_name, MaxKeys=50)
+        if 'Contents' in response:
+            files = [
+                {
+                    'key': obj['Key'],
+                    'size': obj['Size'],
+                    'last_modified': obj['LastModified'].isoformat(),
+                    'storage_class': obj.get('StorageClass', 'STANDARD')
+                }
+                for obj in response['Contents']
+            ]
+            return {
+                'total_files': len(files),
+                'files': files,
+                'bucket': storage.bucket_name
+            }
+        else:
+            return {
+                'total_files': 0,
+                'files': [],
+                'bucket': storage.bucket_name
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list R2 files: {str(e)}")
 
 @router.delete("/{job_id}")
 def delete_job(

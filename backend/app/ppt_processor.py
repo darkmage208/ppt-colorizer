@@ -6,6 +6,8 @@ from pptx.dml.color import RGBColor
 from typing import Dict, Optional
 import re
 import logging
+from datetime import datetime
+import os
 from .storage import storage
 
 logger = logging.getLogger(__name__)
@@ -13,7 +15,7 @@ logger = logging.getLogger(__name__)
 class PPTProcessor:
     COLOR_MAP = {
         'D': RGBColor(0, 0, 255),      # BLUE
-        'E': RGBColor(0, 255, 0),      # GREEN  
+        'E': RGBColor(0, 128, 0),      # DARKER GREEN  
         'F': RGBColor(255, 255, 0),    # YELLOW
         'G': RGBColor(255, 165, 0),    # ORANGE
         'H': RGBColor(255, 0, 0),      # RED
@@ -23,8 +25,19 @@ class PPTProcessor:
         self.excel_data = None
         self.txt_data = None
         self.presentation = None
+        self.excel_filename = None
+        self.txt_filename = None
+        self.template_name = None
+    
+    def set_template_name(self, template_name: str):
+        """Set the template name to be used as patient name"""
+        self.template_name = template_name
+        logger.info(f"Template name set to: {template_name}")
     
     def load_excel_data(self, excel_file_path: str) -> pd.DataFrame:
+        # Store the filename for patient name extraction
+        self.excel_filename = os.path.basename(excel_file_path)
+        
         excel_content = storage.download_file(excel_file_path)
         excel_io = io.BytesIO(excel_content)
         
@@ -46,6 +59,9 @@ class PPTProcessor:
         return df
     
     def load_txt_data(self, txt_file_path: str) -> pd.DataFrame:
+        # Store the filename for output naming
+        self.txt_filename = os.path.basename(txt_file_path)
+        
         txt_content = storage.download_file(txt_file_path)
         txt_str = txt_content.decode('utf-8')
         
@@ -78,6 +94,73 @@ class PPTProcessor:
         
         self.txt_data = df
         return df
+    
+    def extract_patient_name(self) -> str:
+        """
+        Use the Excel template name as the patient name
+        The template name is set when creating the Excel template
+        """
+        logger.info(f"Extracting patient name - template_name: {self.template_name}, excel_filename: {self.excel_filename}")
+        
+        if self.template_name:
+            logger.info(f"Using template name as patient name: {self.template_name}")
+            return self.template_name
+        
+        # Fallback to filename if template name not set
+        if self.excel_filename:
+            base_name = os.path.splitext(self.excel_filename)[0]
+            logger.warning(f"Template name not set, falling back to filename: {base_name}")
+            return base_name
+        
+        logger.warning("No template name or filename available, using 'Unknown Patient'")
+        return "Unknown Patient"
+    
+    def get_current_date(self) -> str:
+        """
+        Get current date in DD-MM-YYYY format
+        Example: 23-08-2025
+        """
+        return datetime.now().strftime("%d-%m-%Y")
+    
+    def replace_patient_and_date_info(self):
+        """
+        Replace "PATIENT: WAIT" with patient name and "DATE: WAIT" with current date
+        These strings may be grouped, so we need to search through all text elements
+        """
+        if not self.presentation:
+            return
+        
+        patient_name = self.extract_patient_name()
+        current_date = self.get_current_date()
+        
+        logger.info(f"Replacing PATIENT: WAIT with PATIENT: {patient_name}")
+        logger.info(f"Replacing DATE: WAIT with DATE: {current_date}")
+        
+        for slide_idx, slide in enumerate(self.presentation.slides):
+            for shape_idx, shape in enumerate(slide.shapes):
+                self._replace_text_in_shape(shape, "PATIENT: WAIT", f"PATIENT: {patient_name}")
+                self._replace_text_in_shape(shape, "DATE: WAIT", f"DATE: {current_date}")
+    
+    def _replace_text_in_shape(self, shape, old_text: str, new_text: str):
+        """
+        Replace text in a shape, handling both individual shapes and groups
+        """
+        try:
+            # Handle individual text frames
+            if hasattr(shape, 'text_frame') and shape.text_frame:
+                for paragraph in shape.text_frame.paragraphs:
+                    for run in paragraph.runs:
+                        if old_text in run.text:
+                            run.text = run.text.replace(old_text, new_text)
+                            logger.debug(f"Replaced '{old_text}' with '{new_text}' in text run")
+            
+            # Handle groups (up to 3 levels deep as in the existing code)
+            elif hasattr(shape, 'shape_type') and shape.shape_type == 6:  # Group
+                for sub_shape in shape.shapes:
+                    self._replace_text_in_shape(sub_shape, old_text, new_text)
+                        
+        except Exception as e:
+            logger.warning(f"Error replacing text in shape: {e}")
     
     def load_presentation(self, ppt_file_path: str) -> Presentation:
         ppt_content = storage.download_file(ppt_file_path)
@@ -230,6 +313,9 @@ class PPTProcessor:
         
         logger.info(f"Starting to process {total_records} Excel records")
         
+        # Replace PATIENT and DATE information before processing colors
+        self.replace_patient_and_date_info()
+        
         # Step 1: Iterate through all records in Excel template
         for idx, row in self.excel_data.iterrows():
             results['processed'] += 1
@@ -279,9 +365,19 @@ class PPTProcessor:
         output_io.seek(0)
         
         if output_path is None:
-            output_path = f"processed_presentations/output_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.pptx"
+            # Use TXT filename for output if available, otherwise use timestamp
+            if self.txt_filename:
+                base_name = os.path.splitext(self.txt_filename)[0]
+                output_filename = f"{base_name}.pptx"
+                logger.info(f"Using TXT-based filename: {output_filename} (from {self.txt_filename})")
+            else:
+                output_filename = f"output_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.pptx"
+                logger.info(f"Using timestamp-based filename: {output_filename}")
+            output_path = f"processed_presentations/{output_filename}"
         
+        logger.info(f"Saving presentation to storage with filename: {output_path.split('/')[-1]}, folder: processed_presentations")
         file_key = storage.upload_file(output_io, output_path.split('/')[-1], "processed_presentations")
+        logger.info(f"Presentation saved with key: {file_key}")
         return file_key
     
     def convert_to_pdf(self, pptx_key: str) -> str:

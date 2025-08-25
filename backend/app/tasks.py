@@ -42,6 +42,8 @@ def process_ppt_job(job_id: int):
             db.commit()
         
         try:
+            # Set the Excel template name as patient name
+            processor.set_template_name(job.excel_data.name)
             processor.load_excel_data(job.excel_data.file_path)
             update_progress(20)
             

@@ -306,12 +306,12 @@ const AdminDashboard = () => {
                 </h3>
                 <form onSubmit={handleExcelSubmit(handleExcelUpload)} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Data Name</label>
+                    <label className="block text-sm font-medium text-gray-700">Patient Name</label>
                     <input
-                      {...registerExcel('name', { required: 'Data name is required' })}
+                      {...registerExcel('name', { required: 'Patient name is required' })}
                       type="text"
                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-                      placeholder="Enter data name"
+                      placeholder="Enter patient name (e.g., John Doe)"
                     />
                     {excelErrors.name && (
                       <p className="mt-1 text-sm text-red-600">{excelErrors.name.message}</p>

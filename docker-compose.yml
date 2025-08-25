@@ -42,6 +42,7 @@ services:
       - R2_SECRET_ACCESS_KEY=a0b8d4560d9d46c51f049e1d0c0f1f8c930ea06b1b38caacc02c9c2c6480d2bf
       - R2_BUCKET_NAME=ppt-colorizer
       - R2_PUBLIC_URL=https://d9a167e5a9fea80d05f4c7fa765442e4.r2.cloudflarestorage.com
+    
     depends_on:
       db:
         condition: service_healthy
