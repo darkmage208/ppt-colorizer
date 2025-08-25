@@ -151,6 +151,16 @@ const AdminDashboard = () => {
     }
   }
 
+  const toggleUserStatus = async (userId, currentStatus) => {
+    try {
+      await api.put(`/users/${userId}`, { is_active: !currentStatus })
+      toast.success(`User ${!currentStatus ? 'activated' : 'deactivated'} successfully`)
+      fetchData()
+    } catch (error) {
+      toast.error('Failed to update user status')
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-96">
@@ -425,7 +435,7 @@ const AdminDashboard = () => {
                           <select
                             value={user.role}
                             onChange={(e) => updateUserRole(user.id, e.target.value)}
-                            className="text-sm border border-gray-300 rounded px-2 py-1"
+                            className="text-sm border border-gray-200 rounded-xl px-3 py-1 bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                           >
                             <option value="user">User</option>
                             <option value="admin">Admin</option>
@@ -442,8 +452,12 @@ const AdminDashboard = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
-                            onClick={() => updateUserRole(user.id, user.is_active ? false : true)}
-                            className="text-blue-600 hover:text-blue-900"
+                            onClick={() => toggleUserStatus(user.id, user.is_active)}
+                            className={`inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium border transition-all duration-200 hover:scale-105 ${
+                              user.is_active 
+                                ? "text-red-700 border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300" 
+                                : "text-green-700 border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-300"
+                            }`}
                           >
                             {user.is_active ? 'Deactivate' : 'Activate'}
                           </button>
