@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 import { Clock, CheckCircle, XCircle, AlertCircle, FileText, Download, Calendar, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 const Jobs = () => {
   const [jobs, setJobs] = useState([])
@@ -10,6 +11,7 @@ const Jobs = () => {
   const [sortBy, setSortBy] = useState('created_at')
   const [sortOrder, setSortOrder] = useState('desc')
   const [deletingJob, setDeletingJob] = useState(null)
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, jobId: null, jobInfo: null })
 
   useEffect(() => {
     fetchJobs()
@@ -79,11 +81,20 @@ const Jobs = () => {
     }
   }
 
-  const deleteJob = async (jobId) => {
-    if (!window.confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
-      return
-    }
-    
+  const openDeleteConfirm = (job) => {
+    setConfirmDialog({
+      isOpen: true,
+      jobId: job.id,
+      jobInfo: job
+    })
+  }
+
+  const closeDeleteConfirm = () => {
+    setConfirmDialog({ isOpen: false, jobId: null, jobInfo: null })
+  }
+
+  const deleteJob = async () => {
+    const jobId = confirmDialog.jobId
     setDeletingJob(jobId)
     try {
       await api.delete(`/jobs/${jobId}`)
@@ -122,27 +133,30 @@ const Jobs = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-96">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+        <div className="relative">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent absolute top-0 left-0"></div>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex justify-between items-center">
+      <div className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl border border-white/20">
+        <div className="px-6 lg:px-8 py-6 border-b border-gray-100/50">
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center space-y-4 lg:space-y-0">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Job History</h1>
-              <p className="text-gray-600">Track all your processing jobs and download results</p>
+              <h1 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Job History</h1>
+              <p className="text-gray-600 mt-1">Track all your processing jobs and download results</p>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
               <div className="flex items-center space-x-2">
                 <label className="text-sm font-medium text-gray-700">Sort by:</label>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+                  className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 >
                   <option value="created_at">Date Created</option>
                   <option value="id">Job ID</option>
@@ -151,10 +165,10 @@ const Jobs = () => {
                 </select>
                 <button
                   onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                  className="p-1 border border-gray-300 rounded hover:bg-gray-50"
+                  className="p-2 border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 transition-all duration-200 group"
                   title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
                 >
-                  {sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+                  {sortOrder === 'asc' ? <ArrowUp className="h-4 w-4 text-gray-600 group-hover:text-blue-600" /> : <ArrowDown className="h-4 w-4 text-gray-600 group-hover:text-blue-600" />}
                 </button>
               </div>
               <div className="flex items-center space-x-2">
@@ -162,7 +176,7 @@ const Jobs = () => {
                 <select
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+                  className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 >
                   <option value="all">All Jobs</option>
                   <option value="queued">Queued</option>
@@ -176,11 +190,11 @@ const Jobs = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-100">
+            <thead className="bg-gradient-to-r from-gray-50 to-gray-100/50">
               <tr>
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 transition-colors duration-200 rounded-l-xl"
                   onClick={() => handleSort('id')}
                 >
                   <div className="flex items-center space-x-1">
@@ -188,17 +202,17 @@ const Jobs = () => {
                     {getSortIcon('id')}
                   </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Template
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Excel Data
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   TXT File
                 </th>
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 transition-colors duration-200"
                   onClick={() => handleSort('status')}
                 >
                   <div className="flex items-center space-x-1">
@@ -207,7 +221,7 @@ const Jobs = () => {
                   </div>
                 </th>
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 transition-colors duration-200"
                   onClick={() => handleSort('created_at')}
                 >
                   <div className="flex items-center space-x-1">
@@ -215,15 +229,15 @@ const Jobs = () => {
                     {getSortIcon('created_at')}
                   </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider rounded-r-xl">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white/50 divide-y divide-gray-100">
               {filteredJobs.length > 0 ? (
                 filteredJobs.map((job) => (
-                  <tr key={job.id} className="hover:bg-gray-50">
+                  <tr key={job.id} className="hover:bg-blue-50/50 transition-colors duration-200">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         {getStatusIcon(job.status)}
@@ -292,38 +306,38 @@ const Jobs = () => {
                           <>
                             <button
                               onClick={() => downloadFile(job.id, 'pptx')}
-                              className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                              className="inline-flex items-center px-3 py-2 border border-gray-200 shadow-sm text-xs font-medium rounded-xl text-gray-700 bg-white hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all duration-200 group"
                               title="Download PowerPoint"
                             >
-                              <FileText className="h-3 w-3 mr-1" />
+                              <FileText className="h-3 w-3 mr-1 group-hover:scale-110 transition-transform" />
                               PPTX
                             </button>
                             {/*<button
                               onClick={() => downloadFile(job.id, 'pdf')}
-                              className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                              className="inline-flex items-center px-3 py-2 border border-gray-200 shadow-sm text-xs font-medium rounded-xl text-gray-700 bg-white hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all duration-200 group"
                               title="Download PDF"
                             >
-                              <Download className="h-3 w-3 mr-1" />
+                              <Download className="h-3 w-3 mr-1 group-hover:scale-110 transition-transform" />
                               PDF
                             </button>*/}
                           </>
                         ) : job.status === 'processing' ? (
-                          <span className="text-blue-600">Processing...</span>
+                          <span className="text-blue-600 font-medium text-sm">Processing...</span>
                         ) : job.status === 'queued' ? (
-                          <span className="text-yellow-600">In Queue</span>
+                          <span className="text-yellow-600 font-medium text-sm">In Queue</span>
                         ) : (
-                          <span className="text-red-600">Failed</span>
+                          <span className="text-red-600 font-medium text-sm">Failed</span>
                         )}
                         <button
-                          onClick={() => deleteJob(job.id)}
+                          onClick={() => openDeleteConfirm(job)}
                           disabled={deletingJob === job.id}
-                          className="inline-flex items-center px-2 py-1 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="inline-flex items-center px-3 py-2 border border-red-200 shadow-sm text-xs font-medium rounded-xl text-red-700 bg-white hover:bg-red-50 hover:border-red-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 group"
                           title="Delete Job"
                         >
                           {deletingJob === job.id ? (
-                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-500"></div>
+                            <div className="animate-spin rounded-full h-3 w-3 border-2 border-red-300 border-t-red-600"></div>
                           ) : (
-                            <Trash2 className="h-3 w-3" />
+                            <Trash2 className="h-3 w-3 group-hover:scale-110 transition-transform" />
                           )}
                         </button>
                       </div>
@@ -349,6 +363,34 @@ const Jobs = () => {
           </table>
         </div>
       </div>
+
+      {/* Professional Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={closeDeleteConfirm}
+        onConfirm={deleteJob}
+        title="Delete Job"
+        message={
+          confirmDialog.jobInfo ? (
+            <div className="space-y-2">
+              <p>Are you sure you want to delete this job? This action cannot be undone.</p>
+              <div className="bg-gray-50 rounded-lg p-3 mt-3">
+                <div className="text-sm">
+                  <p><span className="font-medium">Job ID:</span> #{confirmDialog.jobInfo.id}</p>
+                  {confirmDialog.jobInfo.template?.name && (
+                    <p><span className="font-medium">Template:</span> {confirmDialog.jobInfo.template.name}</p>
+                  )}
+                  <p><span className="font-medium">Status:</span> {confirmDialog.jobInfo.status}</p>
+                  <p><span className="font-medium">Created:</span> {new Date(confirmDialog.jobInfo.created_at).toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+          ) : 'Are you sure you want to delete this job?'
+        }
+        confirmText="Delete Job"
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   )
 }

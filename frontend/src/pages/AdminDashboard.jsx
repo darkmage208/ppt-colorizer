@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 import { Upload, FileText, Database, Trash2, Plus } from 'lucide-react'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 const AdminDashboard = () => {
   const [templates, setTemplates] = useState([])
@@ -14,6 +15,13 @@ const AdminDashboard = () => {
   const [excelUploadProgress, setExcelUploadProgress] = useState(0)
   const [isTemplateUploading, setIsTemplateUploading] = useState(false)
   const [isExcelUploading, setIsExcelUploading] = useState(false)
+  const [confirmDialog, setConfirmDialog] = useState({ 
+    isOpen: false, 
+    type: '', 
+    item: null,
+    title: '',
+    message: ''
+  })
 
   const { register: registerTemplate, handleSubmit: handleTemplateSubmit, reset: resetTemplate, formState: { errors: templateErrors } } = useForm()
   const { register: registerExcel, handleSubmit: handleExcelSubmit, reset: resetExcel, formState: { errors: excelErrors } } = useForm()
@@ -102,27 +110,34 @@ const AdminDashboard = () => {
     }
   }
 
-  const deleteTemplate = async (id) => {
-    if (window.confirm('Are you sure you want to delete this template?')) {
-      try {
-        await api.delete(`/templates/${id}`)
-        toast.success('Template deleted')
-        fetchData()
-      } catch (error) {
-        toast.error('Failed to delete template')
-      }
-    }
+  const openDeleteConfirm = (type, item) => {
+    const isTemplate = type === 'template'
+    setConfirmDialog({
+      isOpen: true,
+      type,
+      item,
+      title: `Delete ${isTemplate ? 'Template' : 'Excel Data'}`,
+      message: `Are you sure you want to delete "${item.name}"? This action cannot be undone.`
+    })
   }
 
-  const deleteExcelData = async (id) => {
-    if (window.confirm('Are you sure you want to delete this Excel data?')) {
-      try {
-        await api.delete(`/excel-data/${id}`)
+  const closeDeleteConfirm = () => {
+    setConfirmDialog({ isOpen: false, type: '', item: null, title: '', message: '' })
+  }
+
+  const handleDelete = async () => {
+    const { type, item } = confirmDialog
+    try {
+      if (type === 'template') {
+        await api.delete(`/templates/${item.id}`)
+        toast.success('Template deleted')
+      } else if (type === 'excel') {
+        await api.delete(`/excel-data/${item.id}`)
         toast.success('Excel data deleted')
-        fetchData()
-      } catch (error) {
-        toast.error('Failed to delete Excel data')
       }
+      fetchData()
+    } catch (error) {
+      toast.error(`Failed to delete ${type === 'template' ? 'template' : 'Excel data'}`)
     }
   }
 
@@ -139,17 +154,20 @@ const AdminDashboard = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-96">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+        <div className="relative">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent absolute top-0 left-0"></div>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-gray-600">Manage templates, Excel data, and users</p>
+      <div className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl border border-white/20">
+        <div className="px-6 lg:px-8 py-6 border-b border-gray-100/50">
+          <h1 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Admin Dashboard</h1>
+          <p className="text-gray-600 mt-1">Manage templates, Excel data, and users</p>
         </div>
 
         <div className="border-b border-gray-200">
@@ -255,8 +273,9 @@ const AdminDashboard = () => {
                           </div>
                         </div>
                         <button
-                          onClick={() => deleteTemplate(template.id)}
-                          className="text-red-600 hover:text-red-800"
+                          onClick={() => openDeleteConfirm('template', template)}
+                          className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-colors"
+                          title="Delete Template"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -355,8 +374,9 @@ const AdminDashboard = () => {
                           </div>
                         </div>
                         <button
-                          onClick={() => deleteExcelData(data.id)}
-                          className="text-red-600 hover:text-red-800"
+                          onClick={() => openDeleteConfirm('excel', data)}
+                          className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-colors"
+                          title="Delete Excel Data"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -437,6 +457,32 @@ const AdminDashboard = () => {
           )}
         </div>
       </div>
+
+      {/* Professional Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={closeDeleteConfirm}
+        onConfirm={handleDelete}
+        title={confirmDialog.title}
+        message={
+          confirmDialog.item ? (
+            <div className="space-y-2">
+              <p>{confirmDialog.message}</p>
+              <div className="bg-gray-50 rounded-lg p-3 mt-3">
+                <div className="text-sm">
+                  <p><span className="font-medium">Name:</span> {confirmDialog.item.name}</p>
+                  <p><span className="font-medium">Version:</span> {confirmDialog.item.version}</p>
+                  <p><span className="font-medium">Filename:</span> {confirmDialog.item.filename}</p>
+                  <p><span className="font-medium">ID:</span> #{confirmDialog.item.id}</p>
+                </div>
+              </div>
+            </div>
+          ) : confirmDialog.message
+        }
+        confirmText={`Delete ${confirmDialog.type === 'template' ? 'Template' : 'Excel Data'}`}
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   )
 }

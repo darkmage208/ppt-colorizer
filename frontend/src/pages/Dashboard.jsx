@@ -120,27 +120,58 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 p-6 bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30 min-h-screen">
       {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg shadow-lg text-white">
-        <div className="px-6 py-8">
-          <h1 className="text-3xl font-bold mb-2">Welcome to PPT Colorizer</h1>
-          <p className="text-blue-100">
-            Upload your TXT file and let our system automatically apply colors to your PowerPoint presentations based on Excel data.
-          </p>
+      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 rounded-2xl shadow-2xl text-white">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="absolute inset-0">
+          <div className="absolute top-4 right-4 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+          <div className="absolute bottom-4 left-4 w-24 h-24 bg-purple-400/20 rounded-full blur-xl"></div>
+        </div>
+        <div className="relative px-8 py-10">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center mb-4">
+                <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl mr-4">
+                  <Upload className="h-6 w-6" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold">PPT Colorizer Dashboard</h1>
+                  <p className="text-blue-100 text-sm">Genetic Analysis Visualization Platform</p>
+                </div>
+              </div>
+              <p className="text-lg text-blue-100 max-w-2xl">
+                Transform your PowerPoint presentations with intelligent color mapping based on genetic data analysis. 
+                Upload TXT files and watch as our system automatically applies precise color schemes.
+              </p>
+            </div>
+            <div className="hidden md:flex items-center space-x-6 text-center">
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <div className="text-2xl font-bold">{templates.length}</div>
+                <div className="text-sm text-blue-200">Templates</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <div className="text-2xl font-bold">{recentJobs.length}</div>
+                <div className="text-sm text-blue-200">Recent Jobs</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Job Submission Form */}
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-              <Play className="h-6 w-6 mr-2 text-blue-600" />
-              Run New Job
+        <div className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl border border-white/20">
+          <div className="px-8 py-6 border-b border-gray-100">
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+              <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl mr-3">
+                <Play className="h-6 w-6 text-white" />
+              </div>
+              Launch Processing Job
             </h2>
+            <p className="text-gray-600 mt-2">Configure and execute your presentation analysis</p>
           </div>
-          <div className="p-6">
+          <div className="p-8">
             <form onSubmit={handleSubmit(handleJobSubmit)} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -228,19 +259,36 @@ const Dashboard = () => {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white py-4 px-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none group"
               >
-                <Upload className="h-4 w-4 mr-2" />
-                {submitting ? 'Submitting...' : 'Run Automation'}
+                <span className="flex items-center justify-center">
+                  {submitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-5 w-5 mr-3 group-hover:translate-y-[-2px] transition-transform" />
+                      Launch Analysis
+                    </>
+                  )}
+                </span>
               </button>
             </form>
           </div>
         </div>
 
         {/* Recent Jobs */}
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Recent Jobs</h2>
+        <div className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl border border-white/20">
+          <div className="px-8 py-6 border-b border-gray-100">
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+              <div className="p-2 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl mr-3">
+                <Clock className="h-6 w-6 text-white" />
+              </div>
+              Processing Status
+            </h2>
+            <p className="text-gray-600 mt-2">Monitor your active and completed jobs</p>
           </div>
           <div className="divide-y divide-gray-200">
             {recentJobs.length > 0 ? (
@@ -285,20 +333,20 @@ const Dashboard = () => {
                   )}
 
                   {job.status === 'done' && (
-                    <div className="mt-3 flex space-x-2">
+                    <div className="mt-4 flex space-x-3">
                       <button
                         onClick={() => downloadFile(job.id, 'pptx')}
-                        className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                        className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-xl shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
                       >
-                        <FileText className="h-3 w-3 mr-1" />
-                        PPTX
+                        <FileText className="h-4 w-4 mr-2" />
+                        Download PPTX
                       </button>
                       {/*<button
                         onClick={() => downloadFile(job.id, 'pdf')}
-                        className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                        className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white text-sm font-medium rounded-xl shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
                       >
-                        <FileText className="h-3 w-3 mr-1" />
-                        PDF
+                        <FileText className="h-4 w-4 mr-2" />
+                        Download PDF
                       </button>*/}
                     </div>
                   )}
@@ -311,8 +359,12 @@ const Dashboard = () => {
                 </div>
               ))
             ) : (
-              <div className="p-6 text-center text-gray-500">
-                No jobs yet. Submit your first job to get started!
+              <div className="p-12 text-center">
+                <div className="p-4 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl inline-block mb-4">
+                  <AlertCircle className="h-12 w-12 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Jobs Yet</h3>
+                <p className="text-gray-500">Submit your first processing job to get started with genetic analysis visualization!</p>
               </div>
             )}
           </div>
@@ -321,20 +373,28 @@ const Dashboard = () => {
 
       {/* Available Resources */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900 flex items-center">
-              <FileText className="h-5 w-5 mr-2 text-blue-600" />
-              Available Templates
+        <div className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl border border-white/20">
+          <div className="px-8 py-6 border-b border-gray-100">
+            <h3 className="text-xl font-bold text-gray-900 flex items-center">
+              <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl mr-3">
+                <FileText className="h-5 w-5 text-white" />
+              </div>
+              PowerPoint Templates
             </h3>
+            <p className="text-gray-600 text-sm mt-1">Available presentation templates for processing</p>
           </div>
           <div className="p-6">
-            <div className="space-y-3">
+            <div className="space-y-4">
               {templates.map((template) => (
-                <div key={template.id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                  <div>
-                    <p className="font-medium text-gray-900">{template.name}</p>
-                    <p className="text-sm text-gray-500">Version {template.version}</p>
+                <div key={template.id} className="group p-4 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 rounded-xl hover:shadow-md transition-all duration-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-gray-900 group-hover:text-purple-700">{template.name}</p>
+                      <p className="text-sm text-gray-600">Version {template.version}</p>
+                    </div>
+                    <div className="p-2 bg-white rounded-lg shadow-sm">
+                      <FileText className="h-4 w-4 text-purple-600" />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -342,20 +402,28 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900 flex items-center">
-              <Database className="h-5 w-5 mr-2 text-green-600" />
-              Available Excel Data
+        <div className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl border border-white/20">
+          <div className="px-8 py-6 border-b border-gray-100">
+            <h3 className="text-xl font-bold text-gray-900 flex items-center">
+              <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl mr-3">
+                <Database className="h-5 w-5 text-white" />
+              </div>
+              Excel Datasets
             </h3>
+            <p className="text-gray-600 text-sm mt-1">Genetic data sources for analysis mapping</p>
           </div>
           <div className="p-6">
-            <div className="space-y-3">
+            <div className="space-y-4">
               {excelData.map((data) => (
-                <div key={data.id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                  <div>
-                    <p className="font-medium text-gray-900">{data.name}</p>
-                    <p className="text-sm text-gray-500">Version {data.version}</p>
+                <div key={data.id} className="group p-4 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-xl hover:shadow-md transition-all duration-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-gray-900 group-hover:text-emerald-700">{data.name}</p>
+                      <p className="text-sm text-gray-600">Version {data.version}</p>
+                    </div>
+                    <div className="p-2 bg-white rounded-lg shadow-sm">
+                      <Database className="h-4 w-4 text-emerald-600" />
+                    </div>
                   </div>
                 </div>
               ))}
