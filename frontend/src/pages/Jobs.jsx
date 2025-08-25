@@ -298,14 +298,14 @@ const Jobs = () => {
                               <FileText className="h-3 w-3 mr-1" />
                               PPTX
                             </button>
-                            <button
+                            {/*<button
                               onClick={() => downloadFile(job.id, 'pdf')}
                               className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
                               title="Download PDF"
                             >
                               <Download className="h-3 w-3 mr-1" />
                               PDF
-                            </button>
+                            </button>*/}
                           </>
                         ) : job.status === 'processing' ? (
                           <span className="text-blue-600">Processing...</span>
