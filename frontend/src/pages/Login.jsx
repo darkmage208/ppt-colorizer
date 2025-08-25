@@ -18,7 +18,7 @@ const Login = () => {
 
   const onSubmit = async (data) => {
     setIsLoading(true)
-    const success = await login(data.username, data.password)
+    const success = await login(data.email, data.password)
     if (success) {
       navigate('/', { replace: true })
     }
@@ -60,17 +60,23 @@ const Login = () => {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
-              <label htmlFor="username" className="sr-only">
-                Username
+              <label htmlFor="email" className="sr-only">
+                Email
               </label>
               <input
-                {...register('username', { required: 'Username is required' })}
-                type="text"
+                {...register('email', { 
+                  required: 'Email is required',
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: 'Invalid email address'
+                  }
+                })}
+                type="email"
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Username"
+                placeholder="Email address"
               />
-              {errors.username && (
-                <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
               )}
             </div>
             <div>

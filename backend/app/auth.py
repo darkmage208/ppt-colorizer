@@ -43,8 +43,15 @@ def verify_token(token: str, credentials_exception):
 def get_user(db: Session, username: str):
     return db.query(User).filter(User.username == username).first()
 
-def authenticate_user(db: Session, username: str, password: str):
-    user = get_user(db, username)
+def get_user_by_email(db: Session, email: str):
+    return db.query(User).filter(User.email == email).first()
+
+def authenticate_user(db: Session, email: str, password: str):
+    # Try to authenticate with email
+    user = get_user_by_email(db, email)
+    if not user:
+        # Fallback to username for backward compatibility
+        user = get_user(db, email)
     if not user:
         return False
     if not verify_password(password, user.hashed_password):

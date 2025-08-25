@@ -24,8 +24,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // Token expired or invalid
       localStorage.removeItem('access_token')
-      // Let the AuthContext handle the redirect instead of forcing a hard navigation
+      // Redirect to login page
+      window.location.href = '/login'
     }
     return Promise.reject(error)
   }
