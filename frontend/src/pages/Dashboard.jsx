@@ -25,7 +25,7 @@ const Dashboard = () => {
       const [templatesRes, excelRes, jobsRes] = await Promise.all([
         api.get('/templates/'),
         api.get('/excel-data/'),
-        api.get('/jobs/?limit=10')
+        api.get('/jobs/?limit=4')
       ])
       
       setTemplates(templatesRes.data)
@@ -40,7 +40,7 @@ const Dashboard = () => {
 
   const fetchJobs = async () => {
     try {
-      const response = await api.get('/jobs/?limit=10')
+      const response = await api.get('/jobs/?limit=4')
       setRecentJobs(response.data)
     } catch (error) {
       console.error('Failed to fetch jobs:', error)
