@@ -18,7 +18,10 @@
       "Bash(sudo apt install:*)",
       "Bash(dpkg:*)",
       "Bash(pip install:*)",
-      "Bash(pip3 install:*)"
+      "Bash(pip3 install:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker:*)"
     ],
     "deny": [],
     "ask": [],
