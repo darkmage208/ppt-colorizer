@@ -37,11 +37,11 @@ services:
       - REDIS_URL=redis://redis:6379
       - CELERY_BROKER_URL=redis://redis:6379
       - CELERY_RESULT_BACKEND=redis://redis:6379
-      - R2_ACCOUNT_ID=d9a167e5a9fea80d05f4c7fa765442e4
-      - R2_ACCESS_KEY_ID=31719596b4783126cdf2114c4ba740f8
-      - R2_SECRET_ACCESS_KEY=a0b8d4560d9d46c51f049e1d0c0f1f8c930ea06b1b38caacc02c9c2c6480d2bf
-      - R2_BUCKET_NAME=ppt-colorizer
-      - R2_PUBLIC_URL=https://d9a167e5a9fea80d05f4c7fa765442e4.r2.cloudflarestorage.com
+      - R2_ACCOUNT_ID=dfec28008d640ef132020ff1aa710210
+      - R2_ACCESS_KEY_ID=b9238cf1d5de2d68ee7df2c348d6eb06
+      - R2_SECRET_ACCESS_KEY=0583b821eb84ea75ace5fdfa4ef7774ffe912a23968c5daf1ba0c3b81b7d99da
+      - R2_BUCKET_NAME=ppt-excel
+      - R2_PUBLIC_URL=https://dfec28008d640ef132020ff1aa710210.r2.cloudflarestorage.com
     
     depends_on:
       db:
@@ -60,11 +60,11 @@ services:
       - REDIS_URL=redis://redis:6379
       - CELERY_BROKER_URL=redis://redis:6379
       - CELERY_RESULT_BACKEND=redis://redis:6379
-      - R2_ACCOUNT_ID=d9a167e5a9fea80d05f4c7fa765442e4
-      - R2_ACCESS_KEY_ID=31719596b4783126cdf2114c4ba740f8
-      - R2_SECRET_ACCESS_KEY=a0b8d4560d9d46c51f049e1d0c0f1f8c930ea06b1b38caacc02c9c2c6480d2bf
-      - R2_BUCKET_NAME=ppt-colorizer
-      - R2_PUBLIC_URL=https://d9a167e5a9fea80d05f4c7fa765442e4.r2.cloudflarestorage.com
+      - R2_ACCOUNT_ID=dfec28008d640ef132020ff1aa710210
+      - R2_ACCESS_KEY_ID=b9238cf1d5de2d68ee7df2c348d6eb06
+      - R2_SECRET_ACCESS_KEY=0583b821eb84ea75ace5fdfa4ef7774ffe912a23968c5daf1ba0c3b81b7d99da
+      - R2_BUCKET_NAME=ppt-excel
+      - R2_PUBLIC_URL=https://dfec28008d640ef132020ff1aa710210.r2.cloudflarestorage.com
     depends_on:
       db:
         condition: service_healthy
