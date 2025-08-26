@@ -3,8 +3,10 @@ import api from '../utils/api'
 import toast from 'react-hot-toast'
 import { Clock, CheckCircle, XCircle, AlertCircle, FileText, Download, Calendar, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import ConfirmDialog from '../components/ConfirmDialog'
+import { useAuth } from '../contexts/AuthContext'
 
 const Jobs = () => {
+  const { user } = useAuth()
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
@@ -133,6 +135,22 @@ const Jobs = () => {
     return sortOrder === 'asc' 
       ? <ArrowUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
       : <ArrowDown className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+  }
+
+  const canDeleteJob = (job) => {
+    if (!user) return false
+    
+    // Superadmins and admins can delete any job
+    if (user.role === 'superadmin' || user.role === 'admin') {
+      return true
+    }
+    
+    // Users can delete their own jobs
+    if (user.role === 'user' && (job.user_id === user.id || job.user?.id === user.id)) {
+      return true
+    }
+    
+    return false
   }
 
   const filteredJobs = jobs.filter(job => {
@@ -338,18 +356,20 @@ const Jobs = () => {
                         ) : (
                           <span className="text-red-600 dark:text-red-400 font-medium text-sm">Failed</span>
                         )}
-                        <button
-                          onClick={() => openDeleteConfirm(job)}
-                          disabled={deletingJob === job.id}
-                          className="inline-flex items-center px-3 py-2 border border-red-200 dark:border-red-800 shadow-sm text-xs font-medium rounded-xl text-red-700 dark:text-red-400 bg-white dark:bg-dark-card hover:bg-red-50 dark:hover:bg-red-900/10 hover:border-red-300 dark:hover:border-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 group"
-                          title="Delete Job"
-                        >
-                          {deletingJob === job.id ? (
-                            <div className="animate-spin rounded-full h-3 w-3 border-2 border-red-300 border-t-red-600"></div>
-                          ) : (
-                            <Trash2 className="h-3 w-3 group-hover:scale-110 transition-transform" />
-                          )}
-                        </button>
+                        {canDeleteJob(job) && (
+                          <button
+                            onClick={() => openDeleteConfirm(job)}
+                            disabled={deletingJob === job.id}
+                            className="inline-flex items-center px-3 py-2 border border-red-200 dark:border-red-800 shadow-sm text-xs font-medium rounded-xl text-red-700 dark:text-red-400 bg-white dark:bg-dark-card hover:bg-red-50 dark:hover:bg-red-900/10 hover:border-red-300 dark:hover:border-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 group"
+                            title="Delete Job"
+                          >
+                            {deletingJob === job.id ? (
+                              <div className="animate-spin rounded-full h-3 w-3 border-2 border-red-300 border-t-red-600"></div>
+                            ) : (
+                              <Trash2 className="h-3 w-3 group-hover:scale-110 transition-transform" />
+                            )}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

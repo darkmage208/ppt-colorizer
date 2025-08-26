@@ -16,7 +16,7 @@ def get_users(
 ):
     if not auth.check_user_management_permission(current_user):
         raise HTTPException(status_code=403, detail="Not authorized to view users")
-    users = db.query(models.User).offset(skip).limit(limit).all()
+    users = db.query(models.User).filter(models.User.is_active == True).offset(skip).limit(limit).all()
     return users
 
 @router.get("/{user_id}", response_model=schemas.User)
@@ -41,6 +41,10 @@ def update_user(
 ):
     if not auth.check_user_management_permission(current_user):
         raise HTTPException(status_code=403, detail="Not authorized to update users")
+    
+    # Check if trying to change role - only superadmins can modify roles
+    if user_update.role is not None and current_user.role != models.UserRole.SUPERADMIN:
+        raise HTTPException(status_code=403, detail="Only superadmins can modify user roles")
     
     target_user = db.query(models.User).filter(models.User.id == user_id).first()
     if target_user and target_user.role == models.UserRole.SUPERADMIN and current_user.role != models.UserRole.SUPERADMIN:

@@ -24,8 +24,13 @@ def get_jobs(
 ):
     query = db.query(models.Job)
     
+    # Users can see all completed jobs but only their own incomplete jobs
+    # Admins and Superadmins can see all jobs
     if current_user.role == models.UserRole.USER:
-        query = query.filter(models.Job.user_id == current_user.id)
+        query = query.filter(
+            (models.Job.user_id == current_user.id) | 
+            (models.Job.status == models.JobStatus.DONE)
+        )
     
     # Apply sorting
     if sort_by == "id":
@@ -98,7 +103,11 @@ def get_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     
-    if current_user.role == models.UserRole.USER and job.user_id != current_user.id:
+    # Users can view their own jobs or any completed job
+    # Admins and Superadmins can view all jobs
+    if (current_user.role == models.UserRole.USER and 
+        job.user_id != current_user.id and 
+        job.status != models.JobStatus.DONE):
         raise HTTPException(status_code=403, detail="Not authorized to view this job")
     
     return job
@@ -116,7 +125,11 @@ def download_pptx(
     if not auth.check_download_permission(current_user):
         raise HTTPException(status_code=403, detail="Not authorized to download files")
     
-    if current_user.role == models.UserRole.USER and job.user_id != current_user.id:
+    # Users can download their own jobs or any completed job
+    # Admins and Superadmins can download all jobs  
+    if (current_user.role == models.UserRole.USER and 
+        job.user_id != current_user.id and 
+        job.status != models.JobStatus.DONE):
         raise HTTPException(status_code=403, detail="Not authorized to access this job")
     
     if job.status != models.JobStatus.DONE or not job.output_pptx_path:
@@ -149,7 +162,11 @@ def download_pdf(
     if not auth.check_download_permission(current_user):
         raise HTTPException(status_code=403, detail="Not authorized to download files")
     
-    if current_user.role == models.UserRole.USER and job.user_id != current_user.id:
+    # Users can download their own jobs or any completed job
+    # Admins and Superadmins can download all jobs
+    if (current_user.role == models.UserRole.USER and 
+        job.user_id != current_user.id and 
+        job.status != models.JobStatus.DONE):
         raise HTTPException(status_code=403, detail="Not authorized to access this job")
     
     if job.status != models.JobStatus.DONE or not job.output_pdf_path:

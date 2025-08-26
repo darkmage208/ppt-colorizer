@@ -15,6 +15,11 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState(user?.role === 'superadmin' ? 'templates' : 'users')
   const [showCreateUserModal, setShowCreateUserModal] = useState(false)
   const [newUserRole, setNewUserRole] = useState('user')
+  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState({ 
+    isOpen: false, 
+    userId: null, 
+    username: null 
+  })
   const [templateUploadProgress, setTemplateUploadProgress] = useState(0)
   const [excelUploadProgress, setExcelUploadProgress] = useState(0)
   const [isTemplateUploading, setIsTemplateUploading] = useState(false)
@@ -187,6 +192,31 @@ const AdminDashboard = () => {
       } else {
         toast.error(errorMessage || 'Failed to create user')
       }
+    }
+  }
+
+  const openDeleteUserConfirm = (userId, username) => {
+    setDeleteConfirmDialog({
+      isOpen: true,
+      userId: userId,
+      username: username
+    })
+  }
+
+  const closeDeleteUserConfirm = () => {
+    setDeleteConfirmDialog({ isOpen: false, userId: null, username: null })
+  }
+
+  const deleteUser = async () => {
+    const { userId, username } = deleteConfirmDialog
+    try {
+      await api.delete(`/users/${userId}`)
+      toast.success(`User '${username}' deleted successfully`)
+      closeDeleteUserConfirm()
+      fetchData()
+    } catch (error) {
+      const errorMessage = error.response?.data?.detail
+      toast.error(errorMessage || 'Failed to delete user')
     }
   }
 
@@ -486,7 +516,7 @@ const AdminDashboard = () => {
                           <select
                             value={tableUser.role}
                             onChange={(e) => updateUserRole(tableUser.id, e.target.value)}
-                            disabled={tableUser.role === 'superadmin' && user?.role !== 'superadmin'}
+                            disabled={user?.role !== 'superadmin'}
                             className="text-sm border border-gray-200 dark:border-dark-border rounded-xl px-3 py-1 bg-white/50 dark:bg-dark-bg text-gray-900 dark:text-dark-text backdrop-blur-sm focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <option value="user">User</option>
@@ -504,17 +534,28 @@ const AdminDashboard = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={() => toggleUserStatus(tableUser.id, tableUser.is_active)}
-                            disabled={tableUser.role === 'superadmin' && user?.role !== 'superadmin'}
-                            className={`inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium border transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
-                              tableUser.is_active 
-                                ? "text-red-700 dark:text-red-400 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-600" 
-                                : "text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/10 hover:bg-green-100 dark:hover:bg-green-900/20 hover:border-green-300 dark:hover:border-green-600"
-                            }`}
-                          >
-                            {tableUser.is_active ? 'Deactivate' : 'Activate'}
-                          </button>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => toggleUserStatus(tableUser.id, tableUser.is_active)}
+                              disabled={user?.role !== 'superadmin'}
+                              className={`inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium border transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
+                                tableUser.is_active 
+                                  ? "text-red-700 dark:text-red-400 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-600" 
+                                  : "text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/10 hover:bg-green-100 dark:hover:bg-green-900/20 hover:border-green-300 dark:hover:border-green-600"
+                              }`}
+                            >
+                              {tableUser.is_active ? 'Deactivate' : 'Activate'}
+                            </button>
+                            {user?.role === 'superadmin' && (
+                              <button
+                                onClick={() => openDeleteUserConfirm(tableUser.id, tableUser.username)}
+                                className="inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 bg-white dark:bg-dark-card hover:bg-red-50 dark:hover:bg-red-900/10 hover:border-red-300 dark:hover:border-red-600 transition-all duration-200 hover:scale-105"
+                                title="Delete User"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -655,6 +696,32 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Delete User Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirmDialog.isOpen}
+        onClose={closeDeleteUserConfirm}
+        onConfirm={deleteUser}
+        title="Delete User"
+        message={
+          deleteConfirmDialog.username ? (
+            <div className="space-y-2">
+              <p>Are you sure you want to delete this user? This action will deactivate the user account.</p>
+              <div className="bg-gray-50 dark:bg-dark-hover rounded-lg p-3 mt-3">
+                <div className="text-sm text-gray-700 dark:text-dark-text">
+                  <p><span className="font-medium">Username:</span> {deleteConfirmDialog.username}</p>
+                  <p className="text-xs text-gray-500 dark:text-dark-muted mt-1">
+                    Note: This will deactivate the user account rather than permanently deleting it.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : 'Are you sure you want to delete this user?'
+        }
+        confirmText="Delete User"
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   )
 }

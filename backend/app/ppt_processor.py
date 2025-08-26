@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class PPTProcessor:
     COLOR_MAP = {
-        'D': RGBColor(0, 0, 255),      # BLUE
+        'D': RGBColor(98, 168, 218),      # BLUE
         'E': RGBColor(0, 128, 0),      # DARKER GREEN  
         'F': RGBColor(255, 255, 0),    # YELLOW
         'G': RGBColor(255, 165, 0),    # ORANGE

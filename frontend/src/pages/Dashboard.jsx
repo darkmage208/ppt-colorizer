@@ -308,10 +308,18 @@ const Dashboard = () => {
             <div className="p-4 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-dark-hover dark:to-dark-border rounded-2xl inline-block mb-4">
               <AlertCircle className="h-12 w-12 text-gray-400 dark:text-dark-muted" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text mb-2">Upload Not Available</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text mb-2">View Mode</h3>
             <p className="text-gray-600 dark:text-dark-muted">
-              Users can only download completed results. Contact an administrator to upload files and create processing jobs.
+              You can view and download all completed analysis results. Contact an administrator to create new processing jobs with your data.
             </p>
+            <div className="mt-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+              <p className="text-sm text-emerald-700 dark:text-emerald-400">
+                <strong>What you can do:</strong><br/>
+                • View all completed jobs and results<br/>
+                • Download PPTX files<br/>
+                • Access the job history and status
+              </p>
+            </div>
           </div>
         </div>
         )}
