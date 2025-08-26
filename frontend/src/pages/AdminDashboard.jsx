@@ -165,22 +165,22 @@ const AdminDashboard = () => {
     return (
       <div className="flex justify-center items-center min-h-96">
         <div className="relative">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200"></div>
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent absolute top-0 left-0"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-emerald-200 dark:border-emerald-800"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-emerald-600 dark:border-emerald-400 border-t-transparent absolute top-0 left-0"></div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl border border-white/20">
-        <div className="px-6 lg:px-8 py-6 border-b border-gray-100/50">
-          <h1 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Admin Dashboard</h1>
-          <p className="text-gray-600 mt-1">Manage templates, Excel data, and users</p>
+    <div className="space-y-6 p-6 bg-gradient-to-br from-gray-50 via-emerald-50/30 to-teal-50/30 dark:from-dark-bg dark:via-dark-bg dark:to-dark-bg min-h-screen">
+      <div className="bg-white/80 dark:bg-dark-card backdrop-blur-sm shadow-xl rounded-2xl border border-white/20 dark:border-dark-border">
+        <div className="px-6 lg:px-8 py-6 border-b border-gray-100/50 dark:border-dark-border">
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-dark-text">Admin Dashboard</h1>
+          <p className="text-gray-600 dark:text-dark-muted mt-1">Manage templates, Excel data, and users</p>
         </div>
 
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-200 dark:border-dark-border">
           <nav className="flex space-x-8 px-6">
             {['templates', 'excel-data', 'users'].map((tab) => (
               <button
@@ -188,8 +188,8 @@ const AdminDashboard = () => {
                 onClick={() => setActiveTab(tab)}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    ? 'border-emerald-500 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400'
+                    : 'border-transparent text-gray-500 dark:text-dark-muted hover:text-gray-700 dark:hover:text-dark-text'
                 }`}
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1).replace('-', ' ')}
@@ -201,18 +201,18 @@ const AdminDashboard = () => {
         <div className="p-6">
           {activeTab === 'templates' && (
             <div className="space-y-6">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-lg font-medium mb-4 flex items-center">
+              <div className="bg-gray-50 dark:bg-dark-hover p-4 rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-dark-text mb-4 flex items-center">
                   <Plus className="h-5 w-5 mr-2" />
                   Upload New Template
                 </h3>
                 <form onSubmit={handleTemplateSubmit(handleTemplateUpload)} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Template Name</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-dark-text">Template Name</label>
                     <input
                       {...registerTemplate('name', { required: 'Template name is required' })}
                       type="text"
-                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                      className="mt-1 block w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text focus:ring-emerald-500 focus:border-emerald-500 dark:focus:ring-emerald-400 dark:focus:border-emerald-400"
                       placeholder="Enter template name"
                     />
                     {templateErrors.name && (
@@ -220,7 +220,7 @@ const AdminDashboard = () => {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">PowerPoint File</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-dark-text">PowerPoint File</label>
                     <input
                       {...registerTemplate('file', { 
                         required: 'Please select a PowerPoint file',
@@ -235,7 +235,7 @@ const AdminDashboard = () => {
                       })}
                       type="file"
                       accept=".pptx"
-                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                      className="mt-1 block w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text focus:ring-emerald-500 focus:border-emerald-500 dark:focus:ring-emerald-400 dark:focus:border-emerald-400"
                     />
                     {templateErrors.file && (
                       <p className="mt-1 text-sm text-red-600">{templateErrors.file.message}</p>
@@ -245,12 +245,12 @@ const AdminDashboard = () => {
                   {isTemplateUploading && (
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-700">Uploading...</span>
-                        <span className="text-sm text-gray-500">{templateUploadProgress}%</span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-dark-text">Uploading...</span>
+                        <span className="text-sm text-gray-500 dark:text-dark-muted">{templateUploadProgress}%</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="w-full bg-gray-200 dark:bg-dark-border rounded-full h-2">
                         <div 
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          className="bg-emerald-600 dark:bg-emerald-400 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${templateUploadProgress}%` }}
                         ></div>
                       </div>
@@ -260,7 +260,7 @@ const AdminDashboard = () => {
                   <button
                     type="submit"
                     disabled={isTemplateUploading}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Upload className="h-4 w-4 mr-2" />
                     {isTemplateUploading ? 'Uploading...' : 'Upload Template'}
@@ -269,22 +269,22 @@ const AdminDashboard = () => {
               </div>
 
               <div>
-                <h3 className="text-lg font-medium mb-4">Existing Templates</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-dark-text mb-4">Existing Templates</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {templates.map((template) => (
-                    <div key={template.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                    <div key={template.id} className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center">
                           <FileText className="h-8 w-8 text-blue-500 mr-3" />
                           <div>
-                            <h4 className="text-lg font-medium text-gray-900">{template.name}</h4>
-                            <p className="text-sm text-gray-500">Version {template.version}</p>
-                            <p className="text-sm text-gray-500">{template.filename}</p>
+                            <h4 className="text-lg font-medium text-gray-900 dark:text-dark-text">{template.name}</h4>
+                            <p className="text-sm text-gray-500 dark:text-dark-muted">Version {template.version}</p>
+                            <p className="text-sm text-gray-500 dark:text-dark-muted">{template.filename}</p>
                           </div>
                         </div>
                         <button
                           onClick={() => openDeleteConfirm('template', template)}
-                          className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-colors"
+                          className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
                           title="Delete Template"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -299,18 +299,18 @@ const AdminDashboard = () => {
 
           {activeTab === 'excel-data' && (
             <div className="space-y-6">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-lg font-medium mb-4 flex items-center">
+              <div className="bg-gray-50 dark:bg-dark-hover p-4 rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-dark-text mb-4 flex items-center">
                   <Plus className="h-5 w-5 mr-2" />
                   Upload New Excel Data
                 </h3>
                 <form onSubmit={handleExcelSubmit(handleExcelUpload)} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Patient Name</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-dark-text">Patient Name</label>
                     <input
                       {...registerExcel('name', { required: 'Patient name is required' })}
                       type="text"
-                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                      className="mt-1 block w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text focus:ring-emerald-500 focus:border-emerald-500 dark:focus:ring-emerald-400 dark:focus:border-emerald-400"
                       placeholder="Enter patient name (e.g., John Doe)"
                     />
                     {excelErrors.name && (
@@ -318,7 +318,7 @@ const AdminDashboard = () => {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Excel File</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-dark-text">Excel File</label>
                     <input
                       {...registerExcel('file', { 
                         required: 'Please select an Excel file',
@@ -336,7 +336,7 @@ const AdminDashboard = () => {
                       })}
                       type="file"
                       accept=".xlsx,.xls"
-                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                      className="mt-1 block w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text focus:ring-emerald-500 focus:border-emerald-500 dark:focus:ring-emerald-400 dark:focus:border-emerald-400"
                     />
                     {excelErrors.file && (
                       <p className="mt-1 text-sm text-red-600">{excelErrors.file.message}</p>
@@ -346,12 +346,12 @@ const AdminDashboard = () => {
                   {isExcelUploading && (
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-700">Uploading...</span>
-                        <span className="text-sm text-gray-500">{excelUploadProgress}%</span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-dark-text">Uploading...</span>
+                        <span className="text-sm text-gray-500 dark:text-dark-muted">{excelUploadProgress}%</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="w-full bg-gray-200 dark:bg-dark-border rounded-full h-2">
                         <div 
-                          className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                          className="bg-emerald-600 dark:bg-emerald-400 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${excelUploadProgress}%` }}
                         ></div>
                       </div>
@@ -361,7 +361,7 @@ const AdminDashboard = () => {
                   <button
                     type="submit"
                     disabled={isExcelUploading}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Upload className="h-4 w-4 mr-2" />
                     {isExcelUploading ? 'Uploading...' : 'Upload Excel Data'}
@@ -370,22 +370,22 @@ const AdminDashboard = () => {
               </div>
 
               <div>
-                <h3 className="text-lg font-medium mb-4">Existing Excel Data</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-dark-text mb-4">Existing Excel Data</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {excelData.map((data) => (
-                    <div key={data.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                    <div key={data.id} className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center">
-                          <Database className="h-8 w-8 text-green-500 mr-3" />
+                          <Database className="h-8 w-8 text-emerald-500 dark:text-emerald-400 mr-3" />
                           <div>
-                            <h4 className="text-lg font-medium text-gray-900">{data.name}</h4>
-                            <p className="text-sm text-gray-500">Version {data.version}</p>
-                            <p className="text-sm text-gray-500">{data.filename}</p>
+                            <h4 className="text-lg font-medium text-gray-900 dark:text-dark-text">{data.name}</h4>
+                            <p className="text-sm text-gray-500 dark:text-dark-muted">Version {data.version}</p>
+                            <p className="text-sm text-gray-500 dark:text-dark-muted">{data.filename}</p>
                           </div>
                         </div>
                         <button
                           onClick={() => openDeleteConfirm('excel', data)}
-                          className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-colors"
+                          className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
                           title="Delete Excel Data"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -400,42 +400,42 @@ const AdminDashboard = () => {
 
           {activeTab === 'users' && (
             <div>
-              <h3 className="text-lg font-medium mb-4">User Management</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-dark-text mb-4">User Management</h3>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-dark-border">
+                  <thead className="bg-gray-50 dark:bg-dark-hover">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-muted uppercase tracking-wider">
                         User
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-muted uppercase tracking-wider">
                         Email
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-muted uppercase tracking-wider">
                         Role
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-muted uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-muted uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white dark:bg-dark-card divide-y divide-gray-200 dark:divide-dark-border">
                     {users.map((user) => (
                       <tr key={user.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-dark-text">
                           {user.username}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-dark-muted">
                           {user.email}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <select
                             value={user.role}
                             onChange={(e) => updateUserRole(user.id, e.target.value)}
-                            className="text-sm border border-gray-200 rounded-xl px-3 py-1 bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                            className="text-sm border border-gray-200 dark:border-dark-border rounded-xl px-3 py-1 bg-white/50 dark:bg-dark-bg text-gray-900 dark:text-dark-text backdrop-blur-sm focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-transparent transition-all duration-200"
                           >
                             <option value="user">User</option>
                             <option value="admin">Admin</option>
@@ -444,8 +444,8 @@ const AdminDashboard = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex px-2 text-xs font-semibold rounded-full ${
                             user.is_active
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                           }`}>
                             {user.is_active ? 'Active' : 'Inactive'}
                           </span>
@@ -455,8 +455,8 @@ const AdminDashboard = () => {
                             onClick={() => toggleUserStatus(user.id, user.is_active)}
                             className={`inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium border transition-all duration-200 hover:scale-105 ${
                               user.is_active 
-                                ? "text-red-700 border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300" 
-                                : "text-green-700 border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-300"
+                                ? "text-red-700 dark:text-red-400 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-600" 
+                                : "text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/10 hover:bg-green-100 dark:hover:bg-green-900/20 hover:border-green-300 dark:hover:border-green-600"
                             }`}
                           >
                             {user.is_active ? 'Deactivate' : 'Activate'}
@@ -482,8 +482,8 @@ const AdminDashboard = () => {
           confirmDialog.item ? (
             <div className="space-y-2">
               <p>{confirmDialog.message}</p>
-              <div className="bg-gray-50 rounded-lg p-3 mt-3">
-                <div className="text-sm">
+              <div className="bg-gray-50 dark:bg-dark-hover rounded-lg p-3 mt-3">
+                <div className="text-sm text-gray-700 dark:text-dark-text">
                   <p><span className="font-medium">Name:</span> {confirmDialog.item.name}</p>
                   <p><span className="font-medium">Version:</span> {confirmDialog.item.version}</p>
                   <p><span className="font-medium">Filename:</span> {confirmDialog.item.filename}</p>

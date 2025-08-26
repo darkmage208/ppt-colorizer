@@ -25,7 +25,7 @@ const Dashboard = () => {
       const [templatesRes, excelRes, jobsRes] = await Promise.all([
         api.get('/templates/'),
         api.get('/excel-data/'),
-        api.get('/jobs/?limit=4')
+        api.get('/jobs/?limit=3')
       ])
       
       setTemplates(templatesRes.data)
@@ -40,7 +40,7 @@ const Dashboard = () => {
 
   const fetchJobs = async () => {
     try {
-      const response = await api.get('/jobs/?limit=4')
+      const response = await api.get('/jobs/?limit=3')
       setRecentJobs(response.data)
     } catch (error) {
       console.error('Failed to fetch jobs:', error)
@@ -124,19 +124,19 @@ const Dashboard = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-96">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-emerald-500 dark:border-emerald-400"></div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-8 p-6 bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30 min-h-screen">
+    <div className="space-y-8 p-6 bg-gradient-to-br from-gray-50 via-emerald-50/30 to-teal-50/30 dark:from-dark-bg dark:via-dark-bg dark:to-dark-bg min-h-screen">
       {/* Welcome Section */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 rounded-2xl shadow-2xl text-white">
+      <div className="relative overflow-hidden bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 dark:from-emerald-700 dark:via-teal-700 dark:to-emerald-800 rounded-2xl shadow-2xl text-white">
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="absolute inset-0">
           <div className="absolute top-4 right-4 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
-          <div className="absolute bottom-4 left-4 w-24 h-24 bg-purple-400/20 rounded-full blur-xl"></div>
+          <div className="absolute bottom-4 left-4 w-24 h-24 bg-teal-400/20 rounded-full blur-xl"></div>
         </div>
         <div className="relative px-8 py-10">
           <div className="flex items-start justify-between">
@@ -147,10 +147,10 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold">GABO Dashboard</h1>
-                  <p className="text-blue-100 text-sm">Genetics Analysis and Biosystems Optimization</p>
+                  <p className="text-emerald-100 text-sm">Genetics Analysis and Biosystems Optimization</p>
                 </div>
               </div>
-              <p className="text-lg text-blue-100 max-w-2xl">
+              <p className="text-lg text-emerald-100 max-w-2xl">
                 Transform your PowerPoint presentations with intelligent color mapping based on genetic data analysis. 
                 Upload TXT files and watch as our system automatically applies precise color schemes.
               </p>
@@ -158,11 +158,11 @@ const Dashboard = () => {
             <div className="hidden md:flex items-center space-x-6 text-center">
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
                 <div className="text-2xl font-bold">{templates.length}</div>
-                <div className="text-sm text-blue-200">Templates</div>
+                <div className="text-sm text-emerald-200">Templates</div>
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
                 <div className="text-2xl font-bold">{recentJobs.length}</div>
-                <div className="text-sm text-blue-200">Recent Jobs</div>
+                <div className="text-sm text-emerald-200">Recent Jobs</div>
               </div>
             </div>
           </div>
@@ -171,25 +171,25 @@ const Dashboard = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Job Submission Form */}
-        <div className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl border border-white/20">
-          <div className="px-8 py-6 border-b border-gray-100">
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-              <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl mr-3">
+        <div className="bg-white/80 dark:bg-dark-card backdrop-blur-sm shadow-xl rounded-2xl border border-white/20 dark:border-dark-border">
+          <div className="px-8 py-6 border-b border-gray-100 dark:border-dark-border">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text flex items-center">
+              <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl mr-3">
                 <Play className="h-6 w-6 text-white" />
               </div>
               Launch Processing Job
             </h2>
-            <p className="text-gray-600 mt-2">Configure and execute your presentation analysis</p>
+            <p className="text-gray-600 dark:text-dark-muted mt-2">Configure and execute your presentation analysis</p>
           </div>
           <div className="p-8">
             <form onSubmit={handleSubmit(handleJobSubmit)} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-2">
                   Select Template
                 </label>
                 <select
                   {...register('template_id', { required: 'Please select a template' })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 dark:focus:ring-emerald-400 dark:focus:border-emerald-400"
                 >
                   <option value="">Choose a template...</option>
                   {templates.map((template) => (
@@ -204,12 +204,12 @@ const Dashboard = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-2">
                   Select Excel Data
                 </label>
                 <select
                   {...register('excel_data_id', { required: 'Please select Excel data' })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 dark:focus:ring-emerald-400 dark:focus:border-emerald-400"
                 >
                   <option value="">Choose Excel data...</option>
                   {excelData.map((data) => (
@@ -224,7 +224,7 @@ const Dashboard = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-2">
                   Upload TXT File
                 </label>
                 <input
@@ -241,12 +241,12 @@ const Dashboard = () => {
                   })}
                   type="file"
                   accept=".txt"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 dark:focus:ring-emerald-400 dark:focus:border-emerald-400"
                 />
                 {errors.txt_file && (
                   <p className="mt-1 text-sm text-red-600">{errors.txt_file.message}</p>
                 )}
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-gray-500 dark:text-dark-muted">
                   Upload your TXT file containing RSID mappings
                 </p>
               </div>
@@ -254,12 +254,12 @@ const Dashboard = () => {
               {submitting && (
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-gray-700">Uploading TXT file...</span>
-                    <span className="text-sm text-gray-500">{jobUploadProgress}%</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-dark-text">Uploading TXT file...</span>
+                    <span className="text-sm text-gray-500 dark:text-dark-muted">{jobUploadProgress}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full bg-gray-200 dark:bg-dark-border rounded-full h-2">
                     <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      className="bg-emerald-600 dark:bg-emerald-400 h-2 rounded-full transition-all duration-300"
                       style={{ width: `${jobUploadProgress}%` }}
                     ></div>
                   </div>
@@ -269,7 +269,7 @@ const Dashboard = () => {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white py-4 px-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none group"
+                className="w-full relative bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 dark:from-emerald-700 dark:via-teal-700 dark:to-emerald-800 text-white py-4 px-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none group"
               >
                 <span className="flex items-center justify-center">
                   {submitting ? (
@@ -290,52 +290,52 @@ const Dashboard = () => {
         </div>
 
         {/* Recent Jobs */}
-        <div className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl border border-white/20">
-          <div className="px-8 py-6 border-b border-gray-100">
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-              <div className="p-2 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl mr-3">
+        <div className="bg-white/80 dark:bg-dark-card backdrop-blur-sm shadow-xl rounded-2xl border border-white/20 dark:border-dark-border">
+          <div className="px-8 py-6 border-b border-gray-100 dark:border-dark-border">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text flex items-center">
+              <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl mr-3">
                 <Clock className="h-6 w-6 text-white" />
               </div>
               Processing Status
             </h2>
-            <p className="text-gray-600 mt-2">Monitor your active and completed jobs</p>
+            <p className="text-gray-600 dark:text-dark-muted mt-2">Monitor your active and completed jobs</p>
           </div>
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-gray-200 dark:divide-dark-border">
             {recentJobs.length > 0 ? (
               recentJobs.map((job) => (
-                <div key={job.id} className="p-6">
+                <div key={job.id} className="p-6 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors duration-200">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       {getStatusIcon(job.status)}
                       <div>
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-sm font-medium text-gray-900 dark:text-dark-text">
                           Job #{job.id}
                         </p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-500 dark:text-dark-muted">
                           {new Date(job.created_at).toLocaleString()}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        job.status === 'done' ? 'bg-green-100 text-green-800' :
-                        job.status === 'processing' ? 'bg-blue-100 text-blue-800' :
-                        job.status === 'error' ? 'bg-red-100 text-red-800' :
-                        'bg-yellow-100 text-yellow-800'
+                        job.status === 'done' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
+                        job.status === 'processing' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400' :
+                        job.status === 'error' ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' :
+                        'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
                       }`}>
                         {job.status}
                       </span>
                       {job.status === 'processing' && (
-                        <span className="text-sm text-gray-500">{job.progress}%</span>
+                        <span className="text-sm text-gray-500 dark:text-dark-muted">{job.progress}%</span>
                       )}
                     </div>
                   </div>
                   
                   {job.status === 'processing' && (
                     <div className="mt-3">
-                      <div className="bg-gray-200 rounded-full h-2">
+                      <div className="bg-gray-200 dark:bg-dark-border rounded-full h-2">
                         <div 
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                          className="bg-emerald-600 dark:bg-emerald-400 h-2 rounded-full transition-all duration-500"
                           style={{ width: `${job.progress}%` }}
                         ></div>
                       </div>
@@ -346,7 +346,7 @@ const Dashboard = () => {
                     <div className="mt-4 flex space-x-3">
                       <button
                         onClick={() => downloadFile(job.id, 'pptx')}
-                        className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-xl shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+                        className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 text-white text-sm font-medium rounded-xl shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
                       >
                         <FileText className="h-4 w-4 mr-2" />
                         Download PPTX
@@ -363,18 +363,18 @@ const Dashboard = () => {
 
                   {job.status === 'error' && job.error_message && (
                     <div className="mt-3">
-                      <p className="text-sm text-red-600">{job.error_message}</p>
+                      <p className="text-sm text-red-600 dark:text-red-400">{job.error_message}</p>
                     </div>
                   )}
                 </div>
               ))
             ) : (
               <div className="p-12 text-center">
-                <div className="p-4 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl inline-block mb-4">
-                  <AlertCircle className="h-12 w-12 text-gray-400" />
+                <div className="p-4 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-dark-hover dark:to-dark-border rounded-2xl inline-block mb-4">
+                  <AlertCircle className="h-12 w-12 text-gray-400 dark:text-dark-muted" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Jobs Yet</h3>
-                <p className="text-gray-500">Submit your first processing job to get started with genetic analysis visualization!</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text mb-2">No Jobs Yet</h3>
+                <p className="text-gray-500 dark:text-dark-muted">Submit your first processing job to get started with genetic analysis visualization!</p>
               </div>
             )}
           </div>
@@ -383,27 +383,27 @@ const Dashboard = () => {
 
       {/* Available Resources */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl border border-white/20">
-          <div className="px-8 py-6 border-b border-gray-100">
-            <h3 className="text-xl font-bold text-gray-900 flex items-center">
-              <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl mr-3">
+        <div className="bg-white/80 dark:bg-dark-card backdrop-blur-sm shadow-xl rounded-2xl border border-white/20 dark:border-dark-border">
+          <div className="px-8 py-6 border-b border-gray-100 dark:border-dark-border">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-dark-text flex items-center">
+              <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl mr-3">
                 <FileText className="h-5 w-5 text-white" />
               </div>
               PowerPoint Templates
             </h3>
-            <p className="text-gray-600 text-sm mt-1">Available presentation templates for processing</p>
+            <p className="text-gray-600 dark:text-dark-muted text-sm mt-1">Available presentation templates for processing</p>
           </div>
           <div className="p-6">
             <div className="space-y-4">
               {templates.map((template) => (
-                <div key={template.id} className="group p-4 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 rounded-xl hover:shadow-md transition-all duration-200">
+                <div key={template.id} className="group p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-dark-hover dark:to-dark-hover border border-emerald-100 dark:border-dark-border rounded-xl hover:shadow-md dark:hover:bg-dark-hover transition-all duration-200">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-semibold text-gray-900 group-hover:text-purple-700">{template.name}</p>
-                      <p className="text-sm text-gray-600">Version {template.version}</p>
+                      <p className="font-semibold text-gray-900 dark:text-dark-text group-hover:text-emerald-700 dark:group-hover:text-emerald-400">{template.name}</p>
+                      <p className="text-sm text-gray-600 dark:text-dark-muted">Version {template.version}</p>
                     </div>
-                    <div className="p-2 bg-white rounded-lg shadow-sm">
-                      <FileText className="h-4 w-4 text-purple-600" />
+                    <div className="p-2 bg-white dark:bg-dark-card rounded-lg shadow-sm">
+                      <FileText className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                     </div>
                   </div>
                 </div>
@@ -412,27 +412,27 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl border border-white/20">
-          <div className="px-8 py-6 border-b border-gray-100">
-            <h3 className="text-xl font-bold text-gray-900 flex items-center">
+        <div className="bg-white/80 dark:bg-dark-card backdrop-blur-sm shadow-xl rounded-2xl border border-white/20 dark:border-dark-border">
+          <div className="px-8 py-6 border-b border-gray-100 dark:border-dark-border">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-dark-text flex items-center">
               <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl mr-3">
                 <Database className="h-5 w-5 text-white" />
               </div>
               Excel Datasets
             </h3>
-            <p className="text-gray-600 text-sm mt-1">Genetic data sources for analysis mapping</p>
+            <p className="text-gray-600 dark:text-dark-muted text-sm mt-1">Genetic data sources for analysis mapping</p>
           </div>
           <div className="p-6">
             <div className="space-y-4">
               {excelData.map((data) => (
-                <div key={data.id} className="group p-4 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-xl hover:shadow-md transition-all duration-200">
+                <div key={data.id} className="group p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-dark-hover dark:to-dark-hover border border-emerald-100 dark:border-dark-border rounded-xl hover:shadow-md dark:hover:bg-dark-hover transition-all duration-200">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-semibold text-gray-900 group-hover:text-emerald-700">{data.name}</p>
-                      <p className="text-sm text-gray-600">Version {data.version}</p>
+                      <p className="font-semibold text-gray-900 dark:text-dark-text group-hover:text-emerald-700 dark:group-hover:text-emerald-400">{data.name}</p>
+                      <p className="text-sm text-gray-600 dark:text-dark-muted">Version {data.version}</p>
                     </div>
-                    <div className="p-2 bg-white rounded-lg shadow-sm">
-                      <Database className="h-4 w-4 text-emerald-600" />
+                    <div className="p-2 bg-white dark:bg-dark-card rounded-lg shadow-sm">
+                      <Database className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                     </div>
                   </div>
                 </div>

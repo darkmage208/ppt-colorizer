@@ -13,7 +13,7 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-dark-bg dark:via-dark-bg dark:to-dark-bg">
           <Navbar />
           <main className="container mx-auto px-4 lg:px-6 py-4 lg:py-8">
             <Routes>

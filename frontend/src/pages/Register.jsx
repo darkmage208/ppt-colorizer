@@ -33,7 +33,7 @@ const Register = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:bg-dark-bg">
         <div className="relative">
           <div className="animate-spin rounded-full h-32 w-32 border-4 border-blue-200"></div>
           <div className="animate-spin rounded-full h-32 w-32 border-4 border-blue-600 border-t-transparent absolute top-0 left-0"></div>
@@ -49,7 +49,7 @@ const Register = () => {
   return (
     <div className="min-h-screen flex">
       {/* Left side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-600 via-purple-700 to-pink-700 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-600 via-purple-700 to-pink-700 dark:from-emerald-900 dark:via-teal-800 dark:to-cyan-900 relative overflow-hidden">
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="absolute inset-0">
           <div className="absolute top-20 left-20 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
@@ -59,10 +59,7 @@ const Register = () => {
         
         <div className="relative z-10 flex flex-col justify-center px-20 text-white">
           <div className="flex items-center mb-8">
-            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
-              <Palette className="h-8 w-8" />
-            </div>
-            <h1 className="text-3xl font-bold ml-4">GABO</h1>
+            <img src="/logo.png" alt="gabo logo" className="h-16" />
           </div>
           
           <h2 className="text-4xl font-bold leading-tight mb-6">
@@ -72,7 +69,7 @@ const Register = () => {
             </span>
           </h2>
           
-          <p className="text-xl text-indigo-100 mb-8 leading-relaxed">
+          <p className="text-xl text-indigo-100 dark:text-emerald-100 mb-8 leading-relaxed">
             Start transforming your presentations with intelligent color schemes 
             and automated genetic analysis integration.
           </p>
@@ -82,41 +79,39 @@ const Register = () => {
               <div className="p-2 bg-white/20 rounded-lg mr-4">
                 <Zap className="h-5 w-5" />
               </div>
-              <span className="text-indigo-100">Automated Processing</span>
+              <span className="text-indigo-100 dark:text-emerald-100">Automated Processing</span>
             </div>
             <div className="flex items-center">
               <div className="p-2 bg-white/20 rounded-lg mr-4">
                 <Sparkles className="h-5 w-5" />
               </div>
-              <span className="text-indigo-100">Smart Color Mapping</span>
+              <span className="text-indigo-100 dark:text-emerald-100">Smart Color Mapping</span>
             </div>
             <div className="flex items-center">
               <div className="p-2 bg-white/20 rounded-lg mr-4">
                 <FileText className="h-5 w-5" />
               </div>
-              <span className="text-indigo-100">Multiple Export Formats</span>
+              <span className="text-indigo-100 dark:text-emerald-100">Multiple Export Formats</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Right side - Register Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-12 bg-white">
+      <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-12 bg-white dark:bg-dark-bg">
         <div className="max-w-md w-full space-y-8">
           {/* Mobile logo */}
           <div className="lg:hidden flex justify-center">
-            <div className="p-3 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl">
-              <Palette className="h-8 w-8 text-white" />
-            </div>
+            <img src="/logo.png" alt="gabo logo" className="h-14" />
           </div>
 
           <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Create your account</h2>
-            <p className="text-gray-600">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-dark-text mb-2">Create your account</h2>
+            <p className="text-gray-600 dark:text-dark-muted">
               Already have an account?{' '}
               <Link
                 to="/login"
-                className="font-semibold text-indigo-600 hover:text-indigo-500 transition-colors"
+                className="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
               >
                 Sign in
               </Link>
@@ -125,7 +120,7 @@ const Register = () => {
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             <div className="space-y-4">
               <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-dark-muted mb-2">
                   Username
                 </label>
                 <input
@@ -134,7 +129,7 @@ const Register = () => {
                     minLength: { value: 3, message: 'Username must be at least 3 characters' }
                   })}
                   type="text"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-gray-400"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-dark-border rounded-xl focus:ring-2 focus:ring-indigo-500 dark:focus:ring-emerald-500 focus:border-transparent dark:bg-dark-card dark:text-dark-text transition-all duration-200 placeholder-gray-400 dark:placeholder-dark-muted"
                   placeholder="Enter your username"
                 />
                 {errors.username && (
@@ -146,7 +141,7 @@ const Register = () => {
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-dark-muted mb-2">
                   Email address
                 </label>
                 <input
@@ -158,7 +153,7 @@ const Register = () => {
                     }
                   })}
                   type="email"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-gray-400"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-dark-border rounded-xl focus:ring-2 focus:ring-indigo-500 dark:focus:ring-emerald-500 focus:border-transparent dark:bg-dark-card dark:text-dark-text transition-all duration-200 placeholder-gray-400 dark:placeholder-dark-muted"
                   placeholder="Enter your email"
                 />
                 {errors.email && (
@@ -170,7 +165,7 @@ const Register = () => {
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-dark-muted mb-2">
                   Password
                 </label>
                 <input
@@ -179,7 +174,7 @@ const Register = () => {
                     minLength: { value: 6, message: 'Password must be at least 6 characters' }
                   })}
                   type="password"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-gray-400"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-dark-border rounded-xl focus:ring-2 focus:ring-indigo-500 dark:focus:ring-emerald-500 focus:border-transparent dark:bg-dark-card dark:text-dark-text transition-all duration-200 placeholder-gray-400 dark:placeholder-dark-muted"
                   placeholder="Enter your password"
                 />
                 {errors.password && (
@@ -191,7 +186,7 @@ const Register = () => {
               </div>
 
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-dark-muted mb-2">
                   Confirm Password
                 </label>
                 <input
@@ -200,7 +195,7 @@ const Register = () => {
                     validate: value => value === password || 'Passwords do not match'
                   })}
                   type="password"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-gray-400"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-dark-border rounded-xl focus:ring-2 focus:ring-indigo-500 dark:focus:ring-emerald-500 focus:border-transparent dark:bg-dark-card dark:text-dark-text transition-all duration-200 placeholder-gray-400 dark:placeholder-dark-muted"
                   placeholder="Confirm your password"
                 />
                 {errors.confirmPassword && (
@@ -215,7 +210,7 @@ const Register = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full relative bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none group"
+              className="w-full relative bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-emerald-600 dark:to-teal-600 text-white py-3 px-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none group"
             >
               <span className="flex items-center justify-center">
                 {isLoading ? (
