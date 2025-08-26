@@ -1,6 +1,6 @@
-# PPT Excel Colorizer
+# GABO - Genetics Analysis and Biosystems Optimization
 
-A web-based automation platform that replaces offline VBA macro workflows by automatically applying color formatting to PowerPoint presentations based on Excel data and TXT file inputs.
+A web-based platform for Genetics Analysis and Biosystems Optimization that automatically processes and visualizes genetic data through PowerPoint presentations based on Excel data and TXT file inputs.
 
 ## Features
 
@@ -42,7 +42,7 @@ A web-based automation platform that replaces offline VBA macro workflows by aut
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd ppt-excel-colorizer
+   cd gabo
    ```
 
 2. **Environment Setup**

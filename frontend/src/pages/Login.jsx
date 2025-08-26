@@ -56,7 +56,7 @@ const Login = () => {
             <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
               <Palette className="h-8 w-8" />
             </div>
-            <h1 className="text-3xl font-bold ml-4">PPT Colorizer</h1>
+            <h1 className="text-3xl font-bold ml-4">GABO</h1>
           </div>
           
           <h2 className="text-4xl font-bold leading-tight mb-6">
@@ -182,12 +182,6 @@ const Login = () => {
               </span>
             </button>
           </form>
-
-          {/* Demo credentials hint */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
-            <p className="text-sm text-blue-800 font-medium mb-1">Demo Credentials:</p>
-            <p className="text-sm text-blue-600">admin@example.com / admin123</p>
-          </div>
         </div>
       </div>
     </div>

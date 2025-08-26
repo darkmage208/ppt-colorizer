@@ -1,4 +1,4 @@
-# Deployment Guide for PPT Excel Colorizer
+# Deployment Guide for GABO - Genetics Analysis and Biosystems Optimization
 
 ## VPS Deployment Instructions
 
@@ -11,8 +11,8 @@
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/ppt-excel-colorizer.git
-cd ppt-excel-colorizer
+git clone https://github.com/yourusername/gabo.git
+cd gabo
 ```
 
 ### 2. Configure Environment Variables

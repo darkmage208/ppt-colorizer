@@ -146,8 +146,8 @@ const Dashboard = () => {
                   <Upload className="h-6 w-6" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold">PPT Colorizer Dashboard</h1>
-                  <p className="text-blue-100 text-sm">Genetic Analysis Visualization Platform</p>
+                  <h1 className="text-3xl font-bold">GABO Dashboard</h1>
+                  <p className="text-blue-100 text-sm">Genetics Analysis and Biosystems Optimization</p>
                 </div>
               </div>
               <p className="text-lg text-blue-100 max-w-2xl">

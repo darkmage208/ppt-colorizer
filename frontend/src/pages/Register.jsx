@@ -62,7 +62,7 @@ const Register = () => {
             <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
               <Palette className="h-8 w-8" />
             </div>
-            <h1 className="text-3xl font-bold ml-4">PPT Colorizer</h1>
+            <h1 className="text-3xl font-bold ml-4">GABO</h1>
           </div>
           
           <h2 className="text-4xl font-bold leading-tight mb-6">

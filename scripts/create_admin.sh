@@ -12,7 +12,7 @@ echo "Email: $EMAIL"
 # Method 1: Using docker exec (if using Docker)
 if command -v docker &> /dev/null; then
     echo "Using Docker to create admin..."
-    docker exec -it ppt-excel-colorizer-backend-1 python create_admin.py --email "$EMAIL" --password "$PASSWORD"
+    docker exec -it gabo-backend-1 python create_admin.py --email "$EMAIL" --password "$PASSWORD"
     
 # Method 2: Using docker-compose exec
 elif command -v docker-compose &> /dev/null; then

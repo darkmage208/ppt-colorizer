@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Setting up PPT Excel Colorizer..."
+echo "🚀 Setting up GABO - Genetics Analysis and Biosystems Optimization..."
 
 # Create .env file from template
 if [ ! -f backend/.env ]; then

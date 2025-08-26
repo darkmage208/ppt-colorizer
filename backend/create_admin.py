@@ -69,7 +69,7 @@ def create_admin_user(email=None, password=None, username=None):
         db.close()
 
 def main():
-    parser = argparse.ArgumentParser(description='Create admin user for PPT Excel Colorizer')
+    parser = argparse.ArgumentParser(description='Create admin user for GABO - Genetics Analysis and Biosystems Optimization')
     parser.add_argument('--email', type=str, help='Admin email address')
     parser.add_argument('--password', type=str, help='Admin password')
     parser.add_argument('--username', type=str, help='Admin username (optional, defaults to email prefix)')

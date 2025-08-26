@@ -7,8 +7,8 @@ from . import models
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="PPT Excel Colorizer API",
-    description="API for automating PowerPoint color formatting based on Excel and TXT data",
+    title="GABO API",
+    description="API for Genetics Analysis and Biosystems Optimization",
     version="1.0.0"
 )
 
@@ -28,7 +28,7 @@ app.include_router(users.router)
 
 @app.get("/")
 def root():
-    return {"message": "PPT Excel Colorizer API"}
+    return {"message": "GABO - Genetics Analysis and Biosystems Optimization API"}
 
 @app.get("/health")
 def health_check():
