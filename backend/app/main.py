@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .routers import auth, templates, excel_data, jobs, users
 from .database import engine
 from . import models
+from .config import settings
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -12,12 +13,23 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
+    allow_headers=[
+        "Accept",
+        "Accept-Language", 
+        "Content-Language",
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+        "X-CSRF-Token",
+        "Cache-Control",
+    ],
+    expose_headers=["Content-Disposition"],
 )
 
 app.include_router(auth.router)
@@ -33,3 +45,12 @@ def root():
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
+@app.get("/debug/cors")
+def debug_cors():
+    """Debug endpoint to check CORS configuration"""
+    return {
+        "cors_origins": settings.cors_origins_list,
+        "debug": settings.debug,
+        "raw_cors_origins": settings.cors_origins
+    }

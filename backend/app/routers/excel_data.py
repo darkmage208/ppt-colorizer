@@ -22,10 +22,13 @@ def create_excel_data(
     name: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin)
+    current_user: models.User = Depends(auth.get_current_active_user)
 ):
     if not file.filename.endswith(('.xlsx', '.xls')):
         raise HTTPException(status_code=400, detail="Only Excel files (.xlsx, .xls) are allowed")
+    
+    if not auth.check_excel_upload_permission(current_user):
+        raise HTTPException(status_code=403, detail="Only superadmins can upload Excel data files")
     
     try:
         file_key = storage.upload_file(file.file, file.filename, "excel_data")
@@ -70,7 +73,7 @@ def get_excel_data_by_id(
 def delete_excel_data(
     excel_data_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin)
+    current_user: models.User = Depends(auth.require_superadmin)
 ):
     excel_data = db.query(models.ExcelData).filter(models.ExcelData.id == excel_data_id).first()
     if excel_data is None:

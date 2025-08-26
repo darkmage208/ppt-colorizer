@@ -24,7 +24,7 @@ def get_jobs(
 ):
     query = db.query(models.Job)
     
-    if current_user.role != models.UserRole.ADMIN:
+    if current_user.role == models.UserRole.USER:
         query = query.filter(models.Job.user_id == current_user.id)
     
     # Apply sorting
@@ -55,6 +55,9 @@ def create_job(
 ):
     if not txt_file.filename.endswith('.txt'):
         raise HTTPException(status_code=400, detail="Only TXT files are allowed")
+    
+    if not auth.check_txt_upload_permission(current_user):
+        raise HTTPException(status_code=403, detail="Only admins and superadmins can upload TXT files")
     
     template = db.query(models.Template).filter(models.Template.id == template_id).first()
     if not template:
@@ -95,7 +98,7 @@ def get_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     
-    if current_user.role != models.UserRole.ADMIN and job.user_id != current_user.id:
+    if current_user.role == models.UserRole.USER and job.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to view this job")
     
     return job
@@ -110,7 +113,10 @@ def download_pptx(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     
-    if current_user.role != models.UserRole.ADMIN and job.user_id != current_user.id:
+    if not auth.check_download_permission(current_user):
+        raise HTTPException(status_code=403, detail="Not authorized to download files")
+    
+    if current_user.role == models.UserRole.USER and job.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to access this job")
     
     if job.status != models.JobStatus.DONE or not job.output_pptx_path:
@@ -140,7 +146,10 @@ def download_pdf(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     
-    if current_user.role != models.UserRole.ADMIN and job.user_id != current_user.id:
+    if not auth.check_download_permission(current_user):
+        raise HTTPException(status_code=403, detail="Not authorized to download files")
+    
+    if current_user.role == models.UserRole.USER and job.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to access this job")
     
     if job.status != models.JobStatus.DONE or not job.output_pdf_path:
@@ -232,8 +241,8 @@ def delete_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     
-    # Allow users to delete their own jobs, admins can delete any job
-    if current_user.role != models.UserRole.ADMIN and job.user_id != current_user.id:
+    # Allow users to delete their own jobs, admins and superadmins can delete any job
+    if current_user.role == models.UserRole.USER and job.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to delete this job")
     
     if job.output_pptx_path:

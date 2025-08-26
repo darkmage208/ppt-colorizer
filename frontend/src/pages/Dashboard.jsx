@@ -3,8 +3,10 @@ import { useForm } from 'react-hook-form'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
 import { Upload, Play, FileText, Database, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 
 const Dashboard = () => {
+  const { user } = useAuth()
   const [templates, setTemplates] = useState([])
   const [excelData, setExcelData] = useState([])
   const [recentJobs, setRecentJobs] = useState([])
@@ -170,7 +172,8 @@ const Dashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Job Submission Form */}
+        {/* Job Submission Form - Only for Admin and Superadmin */}
+        {(user?.role === 'admin' || user?.role === 'superadmin') && (
         <div className="bg-white/80 dark:bg-dark-card backdrop-blur-sm shadow-xl rounded-2xl border border-white/20 dark:border-dark-border">
           <div className="px-8 py-6 border-b border-gray-100 dark:border-dark-border">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text flex items-center">
@@ -288,6 +291,30 @@ const Dashboard = () => {
             </form>
           </div>
         </div>
+        )}
+        
+        {/* Access Denied Message for Regular Users */}
+        {user?.role === 'user' && (
+        <div className="bg-white/80 dark:bg-dark-card backdrop-blur-sm shadow-xl rounded-2xl border border-white/20 dark:border-dark-border">
+          <div className="px-8 py-6 border-b border-gray-100 dark:border-dark-border">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text flex items-center">
+              <div className="p-2 bg-gradient-to-br from-gray-400 to-gray-600 rounded-xl mr-3">
+                <AlertCircle className="h-6 w-6 text-white" />
+              </div>
+              Access Restricted
+            </h2>
+          </div>
+          <div className="p-8 text-center">
+            <div className="p-4 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-dark-hover dark:to-dark-border rounded-2xl inline-block mb-4">
+              <AlertCircle className="h-12 w-12 text-gray-400 dark:text-dark-muted" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text mb-2">Upload Not Available</h3>
+            <p className="text-gray-600 dark:text-dark-muted">
+              Users can only download completed results. Contact an administrator to upload files and create processing jobs.
+            </p>
+          </div>
+        </div>
+        )}
 
         {/* Recent Jobs */}
         <div className="bg-white/80 dark:bg-dark-card backdrop-blur-sm shadow-xl rounded-2xl border border-white/20 dark:border-dark-border">

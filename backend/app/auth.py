@@ -77,9 +77,46 @@ def get_current_active_user(current_user: User = Depends(get_current_user)):
     return current_user
 
 def require_admin(current_user: User = Depends(get_current_active_user)):
-    if current_user.role.value != "admin":
+    if current_user.role.value not in ["admin", "superadmin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
         )
     return current_user
+
+def require_superadmin(current_user: User = Depends(get_current_active_user)):
+    if current_user.role.value != "superadmin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Superadmin access required"
+        )
+    return current_user
+
+def check_file_upload_permission(current_user: User, file_type: str):
+    file_ext = file_type.lower()
+    
+    if current_user.role.value == "superadmin":
+        return True
+    elif current_user.role.value == "admin":
+        return file_ext == "txt"
+    elif current_user.role.value == "user":
+        return False
+    return False
+
+def check_template_upload_permission(current_user: User):
+    return current_user.role.value == "superadmin"
+
+def check_excel_upload_permission(current_user: User):
+    return current_user.role.value == "superadmin"
+
+def check_txt_upload_permission(current_user: User):
+    return current_user.role.value in ["superadmin", "admin"]
+
+def check_delete_permission(current_user: User):
+    return current_user.role.value == "superadmin"
+
+def check_user_management_permission(current_user: User):
+    return current_user.role.value in ["superadmin", "admin"]
+
+def check_download_permission(current_user: User):
+    return current_user.role.value in ["superadmin", "admin", "user"]

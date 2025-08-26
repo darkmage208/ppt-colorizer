@@ -4,13 +4,17 @@ import api from '../utils/api'
 import toast from 'react-hot-toast'
 import { Upload, FileText, Database, Trash2, Plus } from 'lucide-react'
 import ConfirmDialog from '../components/ConfirmDialog'
+import { useAuth } from '../contexts/AuthContext'
 
 const AdminDashboard = () => {
+  const { user } = useAuth()
   const [templates, setTemplates] = useState([])
   const [excelData, setExcelData] = useState([])
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('templates')
+  const [activeTab, setActiveTab] = useState(user?.role === 'superadmin' ? 'templates' : 'users')
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false)
+  const [newUserRole, setNewUserRole] = useState('user')
   const [templateUploadProgress, setTemplateUploadProgress] = useState(0)
   const [excelUploadProgress, setExcelUploadProgress] = useState(0)
   const [isTemplateUploading, setIsTemplateUploading] = useState(false)
@@ -25,6 +29,7 @@ const AdminDashboard = () => {
 
   const { register: registerTemplate, handleSubmit: handleTemplateSubmit, reset: resetTemplate, formState: { errors: templateErrors } } = useForm()
   const { register: registerExcel, handleSubmit: handleExcelSubmit, reset: resetExcel, formState: { errors: excelErrors } } = useForm()
+  const { register: registerUser, handleSubmit: handleUserSubmit, reset: resetUser, formState: { errors: userErrors } } = useForm()
 
   useEffect(() => {
     fetchData()
@@ -161,6 +166,30 @@ const AdminDashboard = () => {
     }
   }
 
+  const handleCreateUser = async (data) => {
+    try {
+      const userData = {
+        username: data.username,
+        email: data.email,
+        password: data.password
+      }
+      
+      await api.post(`/users/?role=${newUserRole}`, userData)
+      toast.success('User created successfully')
+      resetUser()
+      setShowCreateUserModal(false)
+      setNewUserRole('user')
+      fetchData()
+    } catch (error) {
+      const errorMessage = error.response?.data?.detail
+      if (Array.isArray(errorMessage)) {
+        toast.error(errorMessage.map(err => err.msg).join(', '))
+      } else {
+        toast.error(errorMessage || 'Failed to create user')
+      }
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-96">
@@ -182,7 +211,20 @@ const AdminDashboard = () => {
 
         <div className="border-b border-gray-200 dark:border-dark-border">
           <nav className="flex space-x-8 px-6">
-            {['templates', 'excel-data', 'users'].map((tab) => (
+            {user?.role === 'superadmin' && ['templates', 'excel-data', 'users'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === tab
+                    ? 'border-emerald-500 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400'
+                    : 'border-transparent text-gray-500 dark:text-dark-muted hover:text-gray-700 dark:hover:text-dark-text'
+                }`}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1).replace('-', ' ')}
+              </button>
+            ))}
+            {user?.role === 'admin' && ['users'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -199,7 +241,7 @@ const AdminDashboard = () => {
         </div>
 
         <div className="p-6">
-          {activeTab === 'templates' && (
+          {activeTab === 'templates' && user?.role === 'superadmin' && (
             <div className="space-y-6">
               <div className="bg-gray-50 dark:bg-dark-hover p-4 rounded-lg">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-dark-text mb-4 flex items-center">
@@ -297,7 +339,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {activeTab === 'excel-data' && (
+          {activeTab === 'excel-data' && user?.role === 'superadmin' && (
             <div className="space-y-6">
               <div className="bg-gray-50 dark:bg-dark-hover p-4 rounded-lg">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-dark-text mb-4 flex items-center">
@@ -400,7 +442,16 @@ const AdminDashboard = () => {
 
           {activeTab === 'users' && (
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-dark-text mb-4">User Management</h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-dark-text">User Management</h3>
+                <button
+                  onClick={() => setShowCreateUserModal(true)}
+                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm font-medium rounded-xl shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add User
+                </button>
+              </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-dark-border">
                   <thead className="bg-gray-50 dark:bg-dark-hover">
@@ -423,43 +474,46 @@ const AdminDashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-dark-card divide-y divide-gray-200 dark:divide-dark-border">
-                    {users.map((user) => (
-                      <tr key={user.id}>
+                    {users.map((tableUser) => (
+                      <tr key={tableUser.id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-dark-text">
-                          {user.username}
+                          {tableUser.username}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-dark-muted">
-                          {user.email}
+                          {tableUser.email}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <select
-                            value={user.role}
-                            onChange={(e) => updateUserRole(user.id, e.target.value)}
-                            className="text-sm border border-gray-200 dark:border-dark-border rounded-xl px-3 py-1 bg-white/50 dark:bg-dark-bg text-gray-900 dark:text-dark-text backdrop-blur-sm focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-transparent transition-all duration-200"
+                            value={tableUser.role}
+                            onChange={(e) => updateUserRole(tableUser.id, e.target.value)}
+                            disabled={tableUser.role === 'superadmin' && user?.role !== 'superadmin'}
+                            className="text-sm border border-gray-200 dark:border-dark-border rounded-xl px-3 py-1 bg-white/50 dark:bg-dark-bg text-gray-900 dark:text-dark-text backdrop-blur-sm focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <option value="user">User</option>
                             <option value="admin">Admin</option>
+                            {user?.role === 'superadmin' && <option value="superadmin">Superadmin</option>}
                           </select>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex px-2 text-xs font-semibold rounded-full ${
-                            user.is_active
+                            tableUser.is_active
                               ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
                               : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                           }`}>
-                            {user.is_active ? 'Active' : 'Inactive'}
+                            {tableUser.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
-                            onClick={() => toggleUserStatus(user.id, user.is_active)}
-                            className={`inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium border transition-all duration-200 hover:scale-105 ${
-                              user.is_active 
+                            onClick={() => toggleUserStatus(tableUser.id, tableUser.is_active)}
+                            disabled={tableUser.role === 'superadmin' && user?.role !== 'superadmin'}
+                            className={`inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium border transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
+                              tableUser.is_active 
                                 ? "text-red-700 dark:text-red-400 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-600" 
                                 : "text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/10 hover:bg-green-100 dark:hover:bg-green-900/20 hover:border-green-300 dark:hover:border-green-600"
                             }`}
                           >
-                            {user.is_active ? 'Deactivate' : 'Activate'}
+                            {tableUser.is_active ? 'Deactivate' : 'Activate'}
                           </button>
                         </td>
                       </tr>
@@ -497,6 +551,110 @@ const AdminDashboard = () => {
         cancelText="Cancel"
         type="danger"
       />
+
+      {/* Create User Modal */}
+      {showCreateUserModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl max-w-md w-full mx-4">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-dark-border">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text">Create New User</h3>
+            </div>
+            <form onSubmit={handleUserSubmit(handleCreateUser)} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-2">
+                  Username
+                </label>
+                <input
+                  {...registerUser('username', { required: 'Username is required' })}
+                  type="text"
+                  className="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text focus:ring-emerald-500 focus:border-emerald-500"
+                  placeholder="Enter username"
+                />
+                {userErrors.username && (
+                  <p className="mt-1 text-sm text-red-600">{userErrors.username.message}</p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-2">
+                  Email
+                </label>
+                <input
+                  {...registerUser('email', { 
+                    required: 'Email is required',
+                    pattern: {
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: 'Invalid email address'
+                    }
+                  })}
+                  type="email"
+                  className="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text focus:ring-emerald-500 focus:border-emerald-500"
+                  placeholder="Enter email"
+                />
+                {userErrors.email && (
+                  <p className="mt-1 text-sm text-red-600">{userErrors.email.message}</p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-2">
+                  Password
+                </label>
+                <input
+                  {...registerUser('password', { 
+                    required: 'Password is required',
+                    minLength: {
+                      value: 6,
+                      message: 'Password must be at least 6 characters'
+                    }
+                  })}
+                  type="password"
+                  className="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text focus:ring-emerald-500 focus:border-emerald-500"
+                  placeholder="Enter password"
+                />
+                {userErrors.password && (
+                  <p className="mt-1 text-sm text-red-600">{userErrors.password.message}</p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-2">
+                  Role
+                </label>
+                <select
+                  value={newUserRole}
+                  onChange={(e) => setNewUserRole(e.target.value)}
+                  className="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text focus:ring-emerald-500 focus:border-emerald-500"
+                >
+                  <option value="user">User</option>
+                  {user?.role === 'superadmin' && <option value="admin">Admin</option>}
+                  {user?.role === 'superadmin' && <option value="superadmin">Superadmin</option>}
+                </select>
+              </div>
+              
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateUserModal(false)
+                    resetUser()
+                    setNewUserRole('user')
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-dark-text bg-gray-100 dark:bg-dark-hover hover:bg-gray-200 dark:hover:bg-dark-border rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors"
+                >
+                  Create User
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

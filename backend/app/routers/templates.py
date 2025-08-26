@@ -22,10 +22,13 @@ def create_template(
     name: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin)
+    current_user: models.User = Depends(auth.get_current_active_user)
 ):
     if not file.filename.endswith('.pptx'):
         raise HTTPException(status_code=400, detail="Only PPTX files are allowed")
+    
+    if not auth.check_template_upload_permission(current_user):
+        raise HTTPException(status_code=403, detail="Only superadmins can upload PowerPoint templates")
     
     try:
         file_key = storage.upload_file(file.file, file.filename, "templates")
@@ -70,7 +73,7 @@ def get_template(
 def delete_template(
     template_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin)
+    current_user: models.User = Depends(auth.require_superadmin)
 ):
     template = db.query(models.Template).filter(models.Template.id == template_id).first()
     if template is None:

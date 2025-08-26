@@ -37,6 +37,8 @@ services:
       - REDIS_URL=redis://redis:6379
       - CELERY_BROKER_URL=redis://redis:6379
       - CELERY_RESULT_BACKEND=redis://redis:6379
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173,http://frontend:3000,http://0.0.0.0:3000
+      - DEBUG=true
       - R2_ACCOUNT_ID=dfec28008d640ef132020ff1aa710210
       - R2_ACCESS_KEY_ID=b9238cf1d5de2d68ee7df2c348d6eb06
       - R2_SECRET_ACCESS_KEY=0583b821eb84ea75ace5fdfa4ef7774ffe912a23968c5daf1ba0c3b81b7d99da

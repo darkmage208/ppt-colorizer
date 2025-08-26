@@ -59,7 +59,7 @@ const Navbar = () => {
               <span>Jobs</span>
             </Link>
             
-            {user.role === 'admin' && (
+            {(user.role === 'admin' || user.role === 'superadmin') && (
               <Link
                 to="/admin"
                 className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
@@ -83,6 +83,11 @@ const Navbar = () => {
                 {user.role === 'admin' && (
                   <span className="bg-gradient-to-r from-violet-500 to-purple-600 text-white px-2 py-1 rounded-lg text-xs font-semibold">
                     Admin
+                  </span>
+                )}
+                {user.role === 'superadmin' && (
+                  <span className="bg-gradient-to-r from-red-500 to-pink-600 text-white px-2 py-1 rounded-lg text-xs font-semibold">
+                    Superadmin
                   </span>
                 )}
               </div>
@@ -124,6 +129,11 @@ const Navbar = () => {
                       Admin
                     </span>
                   )}
+                  {user.role === 'superadmin' && (
+                    <span className="bg-gradient-to-r from-red-500 to-pink-600 text-white px-2 py-1 rounded text-xs font-semibold">
+                      Superadmin
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -154,7 +164,7 @@ const Navbar = () => {
                 <span>Jobs</span>
               </Link>
               
-              {user.role === 'admin' && (
+              {(user.role === 'admin' || user.role === 'superadmin') && (
                 <Link
                   to="/admin"
                   onClick={() => setIsMenuOpen(false)}
