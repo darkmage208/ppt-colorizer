@@ -18,9 +18,17 @@ ENV VITE_API_URL=$VITE_API_URL
 # Build the application
 RUN npm run build
 
+# Debug: List contents of dist directory
+RUN ls -la /app/dist/
+
 # Use nginx to serve the built application
 FROM nginx:alpine
+
+# Copy built application
 COPY --from=0 /app/dist /usr/share/nginx/html
+
+# Debug: List contents of nginx html directory
+RUN ls -la /usr/share/nginx/html/
 
 # Create a simple nginx config for serving the SPA
 RUN echo 'server { \
