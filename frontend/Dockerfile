@@ -30,6 +30,14 @@ RUN echo 'server { \
         index index.html index.htm; \
         try_files $uri $uri/ /index.html; \
     } \
+    \
+    # Serve static assets with proper cache headers \
+    location ~* \.(png|jpg|jpeg|gif|ico|svg|css|js|woff|woff2|ttf|eot)$ { \
+        root /usr/share/nginx/html; \
+        expires 1y; \
+        add_header Cache-Control "public, immutable"; \
+        try_files $uri =404; \
+    } \
 }' > /etc/nginx/conf.d/default.conf
 
 EXPOSE 3000
