@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./nginx/ssl:/etc/letsencrypt
+      - ./nginx/webroot:/var/www/certbot
+    command: certonly --webroot -w /var/www/certbot -d gabiosystems.com -d www.gabiosystems.com --email your-email@example.com --agree-tos --no-eff-email
