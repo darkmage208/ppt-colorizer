@@ -2,25 +2,27 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: ppt_colorizer
-      POSTGRES_USER: ppt_user
-      POSTGRES_PASSWORD: ppt_password
+      POSTGRES_DB: ${POSTGRES_DB:-ppt_colorizer}
+      POSTGRES_USER: ${POSTGRES_USER:-ppt_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    networks:
+      - app-network
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ppt_user -d ppt_colorizer"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ppt_user} -d ${POSTGRES_DB:-ppt_colorizer}"]
       interval: 30s
       timeout: 10s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - app-network
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
@@ -29,64 +31,82 @@ services:
 
   backend:
     build: ./backend
-    ports:
-      - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://ppt_user:ppt_password@db:5432/ppt_colorizer
-      - SECRET_KEY=your-secret-key-change-in-production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ppt_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-ppt_colorizer}
+      - SECRET_KEY=${SECRET_KEY}
       - REDIS_URL=redis://redis:6379
       - CELERY_BROKER_URL=redis://redis:6379
       - CELERY_RESULT_BACKEND=redis://redis:6379
-      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173,http://frontend:3000,http://0.0.0.0:3000
-      - DEBUG=true
-      - R2_ACCOUNT_ID=dfec28008d640ef132020ff1aa710210
-      - R2_ACCESS_KEY_ID=b9238cf1d5de2d68ee7df2c348d6eb06
-      - R2_SECRET_ACCESS_KEY=0583b821eb84ea75ace5fdfa4ef7774ffe912a23968c5daf1ba0c3b81b7d99da
-      - R2_BUCKET_NAME=ppt-excel
-      - R2_PUBLIC_URL=https://dfec28008d640ef132020ff1aa710210.r2.cloudflarestorage.com
-    
+      - CORS_ORIGINS=https://gabiosystems.com,https://www.gabiosystems.com
+      - DEBUG=false
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
+      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
+      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
+      - R2_BUCKET_NAME=${R2_BUCKET_NAME}
+      - R2_PUBLIC_URL=${R2_PUBLIC_URL}
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./backend:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - app-network
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
   celery:
     build: ./backend
     environment:
-      - DATABASE_URL=postgresql://ppt_user:ppt_password@db:5432/ppt_colorizer
-      - SECRET_KEY=your-secret-key-change-in-production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ppt_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-ppt_colorizer}
+      - SECRET_KEY=${SECRET_KEY}
       - REDIS_URL=redis://redis:6379
       - CELERY_BROKER_URL=redis://redis:6379
       - CELERY_RESULT_BACKEND=redis://redis:6379
-      - R2_ACCOUNT_ID=dfec28008d640ef132020ff1aa710210
-      - R2_ACCESS_KEY_ID=b9238cf1d5de2d68ee7df2c348d6eb06
-      - R2_SECRET_ACCESS_KEY=0583b821eb84ea75ace5fdfa4ef7774ffe912a23968c5daf1ba0c3b81b7d99da
-      - R2_BUCKET_NAME=ppt-excel
-      - R2_PUBLIC_URL=https://dfec28008d640ef132020ff1aa710210.r2.cloudflarestorage.com
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
+      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
+      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
+      - R2_BUCKET_NAME=${R2_BUCKET_NAME}
+      - R2_PUBLIC_URL=${R2_PUBLIC_URL}
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./backend:/app
+    networks:
+      - app-network
+    restart: unless-stopped
     command: celery -A app.tasks.celery_app worker --loglevel=info
 
   frontend:
-    build: ./frontend
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    command: npm run dev
+    build: 
+      context: ./frontend
+      args:
+        - VITE_API_URL=https://gabiosystems.com/api
+    networks:
+      - app-network
+    restart: unless-stopped
     depends_on:
       - backend
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
 
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  app-network:
+    driver: bridge
