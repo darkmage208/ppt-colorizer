@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { Clock, CheckCircle, XCircle, AlertCircle, FileText, Download, Calendar, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { useAuth } from '../contexts/AuthContext'
+import { getFilenameWithoutExtension } from '../utils/util'
 
 const Jobs = () => {
   const { user } = useAuth()
@@ -270,7 +271,7 @@ const Jobs = () => {
                       <div className="flex items-center">
                         {getStatusIcon(job.status)}
                         <span className="ml-2 text-sm font-medium text-gray-900 dark:text-dark-text">
-                          #{job.id}
+                          #{job.id} - {getFilenameWithoutExtension(job.txt_filename)}
                         </span>
                       </div>
                     </td>
