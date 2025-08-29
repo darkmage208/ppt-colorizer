@@ -234,7 +234,7 @@ dist
 .cache/
 
 # Vite build output
-dist/
+# dist/
 
 # Rollup build output
 dist/
