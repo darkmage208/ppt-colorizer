@@ -47,7 +47,7 @@ def process_ppt_job(job_id: int):
             processor.load_excel_data(job.excel_data.file_path)
             update_progress(20)
             
-            processor.load_txt_data(job.txt_file_path)
+            processor.load_txt_data(job.txt_file_path, job.txt_filename)
             update_progress(40)
             
             processor.load_presentation(job.template.file_path)

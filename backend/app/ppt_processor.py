@@ -58,9 +58,9 @@ class PPTProcessor:
         self.excel_data = df
         return df
     
-    def load_txt_data(self, txt_file_path: str) -> pd.DataFrame:
-        # Store the filename for output naming
-        self.txt_filename = os.path.basename(txt_file_path)
+    def load_txt_data(self, txt_file_path: str, original_filename: str = None) -> pd.DataFrame:
+        # Store the original filename if provided, otherwise use the file path basename
+        self.txt_filename = original_filename or os.path.basename(txt_file_path)
         
         txt_content = storage.download_file(txt_file_path)
         txt_str = txt_content.decode('utf-8')
