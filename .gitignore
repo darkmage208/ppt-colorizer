@@ -6,7 +6,7 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-dist/
+# dist/
 downloads/
 eggs/
 .eggs/
@@ -228,7 +228,7 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
+# dist
 
 # Gatsby files
 .cache/
@@ -237,7 +237,7 @@ dist
 # dist/
 
 # Rollup build output
-dist/
+# dist/
 
 # Storybook build outputs
 .out
