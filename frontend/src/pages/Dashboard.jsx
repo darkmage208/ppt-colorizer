@@ -4,6 +4,7 @@ import api from '../utils/api'
 import toast from 'react-hot-toast'
 import { Upload, Play, FileText, Database, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { getFilenameWithoutExtension } from '../utils/util'
 
 const Dashboard = () => {
   const { user } = useAuth()
@@ -344,7 +345,7 @@ const Dashboard = () => {
                       {getStatusIcon(job.status)}
                       <div>
                         <p className="text-sm font-medium text-gray-900 dark:text-dark-text">
-                          Job #{job.id}
+                          Job #{job.id} - {getFilenameWithoutExtension(job.txt_filename)}
                         </p>
                         <p className="text-sm text-gray-500 dark:text-dark-muted">
                           {new Date(job.created_at).toLocaleString()}

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class PPTProcessor:
     COLOR_MAP = {
-        'D': RGBColor(98, 168, 218),      # BLUE
+        'D': RGBColor(0, 112, 192),      # BLUE
         'E': RGBColor(0, 128, 0),      # DARKER GREEN  
         'F': RGBColor(255, 255, 0),    # YELLOW
         'G': RGBColor(255, 165, 0),    # ORANGE
@@ -100,11 +100,11 @@ class PPTProcessor:
         Use the Excel template name as the patient name
         The template name is set when creating the Excel template
         """
-        logger.info(f"Extracting patient name - template_name: {self.template_name}, excel_filename: {self.excel_filename}")
+        logger.info(f"Extracting patient name - txt_name: {self.txt_filename}, excel_filename: {self.excel_filename}")
         
-        if self.template_name:
-            logger.info(f"Using template name as patient name: {self.template_name}")
-            return self.template_name
+        if self.txt_filename:
+            logger.info(f"Using txt name as patient name: {self.txt_filename}")
+            return os.path.splitext(self.txt_filename)
         
         # Fallback to filename if template name not set
         if self.excel_filename:
@@ -140,6 +140,7 @@ class PPTProcessor:
             for shape_idx, shape in enumerate(slide.shapes):
                 self._replace_text_in_shape(shape, "PATIENT: WAIT", f"PATIENT: {patient_name}")
                 self._replace_text_in_shape(shape, "DATE: WAIT", f"DATE: {current_date}")
+                self._replace_text_in_shape(shape, "DATE:WAIT", f"DATE: {current_date}")
     
     def _replace_text_in_shape(self, shape, old_text: str, new_text: str):
         """
