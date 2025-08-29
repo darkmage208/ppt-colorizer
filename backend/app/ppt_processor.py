@@ -97,22 +97,23 @@ class PPTProcessor:
     
     def extract_patient_name(self) -> str:
         """
-        Use the Excel template name as the patient name
-        The template name is set when creating the Excel template
+        Use the TXT filename as the patient name
+        Falls back to template name if TXT filename not available
         """
-        logger.info(f"Extracting patient name - txt_name: {self.txt_filename}, excel_filename: {self.excel_filename}")
+        logger.info(f"Extracting patient name - txt_filename: {self.txt_filename}, template_name: {self.template_name}")
         
+        # Primary: Use TXT filename
         if self.txt_filename:
-            logger.info(f"Using txt name as patient name: {self.txt_filename}")
-            return os.path.splitext(self.txt_filename)
-        
-        # Fallback to filename if template name not set
-        if self.excel_filename:
-            base_name = os.path.splitext(self.excel_filename)[0]
-            logger.warning(f"Template name not set, falling back to filename: {base_name}")
+            base_name = os.path.splitext(self.txt_filename)[0]
+            logger.info(f"Using TXT filename as patient name: {base_name}")
             return base_name
         
-        logger.warning("No template name or filename available, using 'Unknown Patient'")
+        # Fallback to template name if TXT filename not available
+        if self.template_name:
+            logger.info(f"TXT filename not available, using template name as patient name: {self.template_name}")
+            return self.template_name
+        
+        logger.warning("No TXT filename or template name available, using 'Unknown Patient'")
         return "Unknown Patient"
     
     def get_current_date(self) -> str:
@@ -140,7 +141,6 @@ class PPTProcessor:
             for shape_idx, shape in enumerate(slide.shapes):
                 self._replace_text_in_shape(shape, "PATIENT: WAIT", f"PATIENT: {patient_name}")
                 self._replace_text_in_shape(shape, "DATE: WAIT", f"DATE: {current_date}")
-                self._replace_text_in_shape(shape, "DATE:WAIT", f"DATE: {current_date}")
     
     def _replace_text_in_shape(self, shape, old_text: str, new_text: str):
         """

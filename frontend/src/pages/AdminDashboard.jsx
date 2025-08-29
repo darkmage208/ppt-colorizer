@@ -378,7 +378,7 @@ const AdminDashboard = () => {
                 </h3>
                 <form onSubmit={handleExcelSubmit(handleExcelUpload)} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-dark-text">Patient Name</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-dark-text">Excel Name</label>
                     <input
                       {...registerExcel('name', { required: 'Patient name is required' })}
                       type="text"
