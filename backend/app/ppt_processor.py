@@ -141,6 +141,7 @@ class PPTProcessor:
             for shape_idx, shape in enumerate(slide.shapes):
                 self._replace_text_in_shape(shape, "PATIENT: WAIT", f"PATIENT: {patient_name}")
                 self._replace_text_in_shape(shape, "DATE: WAIT", f"DATE: {current_date}")
+                self._replace_text_in_shape(shape, "WAIT", f"{current_date}")
     
     def _replace_text_in_shape(self, shape, old_text: str, new_text: str):
         """
