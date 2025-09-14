@@ -134,13 +134,9 @@ class PPTProcessor:
         patient_name = self.extract_patient_name()
         current_date = self.get_current_date()
         
-        logger.info(f"Replacing PATIENT: WAIT with PATIENT: {patient_name}")
-        logger.info(f"Replacing DATE: WAIT with DATE: {current_date}")
-        
         for slide_idx, slide in enumerate(self.presentation.slides):
             for shape_idx, shape in enumerate(slide.shapes):
                 self._replace_text_in_shape(shape, "PATIENT: WAIT", f"PATIENT: {patient_name}")
-                self._replace_text_in_shape(shape, "DATE: WAIT", f"DATE: {current_date}")
                 self._replace_text_in_shape(shape, "WAIT", f"{current_date}")
     
     def _replace_text_in_shape(self, shape, old_text: str, new_text: str):
