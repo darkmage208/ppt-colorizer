@@ -18,6 +18,14 @@ celery_app.conf.update(
     result_serializer='json',
     timezone='UTC',
     enable_utc=True,
+    worker_concurrency=8,
+    task_routes={
+        'app.tasks.process_ppt_job': {'queue': 'ppt_processing'},
+    },
+    task_default_queue='ppt_processing',
+    worker_prefetch_multiplier=1,
+    task_acks_late=True,
+    worker_disable_rate_limits=True,
 )
 
 engine = create_engine(settings.database_url)

@@ -91,7 +91,7 @@ services:
     volumes:
       - ./backend:/app
       - /app/__pycache__
-    command: celery -A app.tasks.celery_app worker --loglevel=info
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=8 -Q ppt_processing
 
   frontend:
     build:
