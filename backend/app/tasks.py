@@ -53,7 +53,7 @@ def process_ppt_job(job_id: int):
             processor.load_presentation(job.template.file_path)
             update_progress(30)
             
-            results = processor.process_presentation(progress_callback=lambda p: update_progress(30 + int(p * 0.5)))
+            results = processor.process_presentation_optimized(progress_callback=lambda p: update_progress(30 + int(p * 0.5)))
             update_progress(80)
             
             pptx_key = processor.save_presentation()

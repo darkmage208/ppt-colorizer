@@ -15,12 +15,12 @@ logger = logging.getLogger(__name__)
 class PPTProcessor:
     COLOR_MAP = {
         'D': RGBColor(0, 112, 192),      # BLUE
-        'E': RGBColor(0, 128, 0),      # DARKER GREEN  
+        'E': RGBColor(0, 128, 0),      # DARKER GREEN
         'F': RGBColor(255, 255, 0),    # YELLOW
         'G': RGBColor(255, 165, 0),    # ORANGE
         'H': RGBColor(255, 0, 0),      # RED
     }
-    
+
     def __init__(self):
         self.excel_data = None
         self.txt_data = None
@@ -28,6 +28,10 @@ class PPTProcessor:
         self.excel_filename = None
         self.txt_filename = None
         self.template_name = None
+        # Performance optimization caches
+        self._txt_lookup_cache = None
+        self._shape_rsid_map = None
+        self._rsid_color_cache = None
     
     def set_template_name(self, template_name: str):
         """Set the template name to be used as patient name"""
@@ -93,6 +97,9 @@ class PPTProcessor:
             raise ValueError("TXT file must have a 'RESULT' column")
         
         self.txt_data = df
+        # Clear cache when new TXT data is loaded
+        self._txt_lookup_cache = None
+        self._rsid_color_cache = None
         return df
     
     def extract_patient_name(self) -> str:
@@ -165,121 +172,162 @@ class PPTProcessor:
         ppt_io = io.BytesIO(ppt_content)
         
         self.presentation = Presentation(ppt_io)
+        # Clear cache when new presentation is loaded
+        self._shape_rsid_map = None
         return self.presentation
-    
-    
+
+    def _build_txt_lookup_cache(self):
+        """Build a fast lookup cache for TXT data: RSID -> RESULT"""
+        if self._txt_lookup_cache is not None:
+            return self._txt_lookup_cache
+
+        if self.txt_data is None:
+            return {}
+
+        logger.info("Building TXT lookup cache...")
+        self._txt_lookup_cache = {}
+
+        for _, row in self.txt_data.iterrows():
+            rsid = str(row['RSID']).strip()
+            result = str(row['RESULT']).strip().upper()
+            self._txt_lookup_cache[rsid] = result
+
+        logger.info(f"TXT lookup cache built with {len(self._txt_lookup_cache)} entries")
+        return self._txt_lookup_cache
+
+    def _build_shape_rsid_map(self):
+        """Build a map of RSID -> [shape objects] for fast lookup"""
+        if self._shape_rsid_map is not None:
+            return self._shape_rsid_map
+
+        if self.presentation is None:
+            return {}
+
+        logger.info("Building PowerPoint shape-RSID mapping...")
+        self._shape_rsid_map = {}
+
+        def extract_shapes_recursive(shapes, level=0):
+            """Recursively extract all text shapes and their RSIDs"""
+            shape_count = 0
+            for shape in shapes:
+                try:
+                    # Handle individual text frames
+                    if hasattr(shape, 'text_frame') and shape.text_frame:
+                        text_content = shape.text_frame.text.strip()
+                        if text_content and text_content.startswith('rs'):  # RSID pattern
+                            if text_content not in self._shape_rsid_map:
+                                self._shape_rsid_map[text_content] = []
+                            self._shape_rsid_map[text_content].append(shape)
+                            shape_count += 1
+
+                    # Handle groups recursively
+                    elif hasattr(shape, 'shape_type') and shape.shape_type == 6 and level < 4:  # Group, max 4 levels
+                        shape_count += extract_shapes_recursive(shape.shapes, level + 1)
+
+                except Exception as e:
+                    logger.warning(f"Error processing shape at level {level}: {e}")
+
+            return shape_count
+
+        total_shapes = 0
+        for slide_idx, slide in enumerate(self.presentation.slides):
+            slide_shapes = extract_shapes_recursive(slide.shapes)
+            total_shapes += slide_shapes
+
+        logger.info(f"Shape-RSID mapping built: {len(self._shape_rsid_map)} unique RSIDs found across {total_shapes} shapes")
+        return self._shape_rsid_map
+
+    def _build_rsid_color_cache(self):
+        """Pre-compute colors for all RSIDs found in Excel data"""
+        if self._rsid_color_cache is not None:
+            return self._rsid_color_cache
+
+        if self.excel_data is None:
+            return {}
+
+        logger.info("Building RSID-color cache...")
+        self._rsid_color_cache = {}
+        txt_cache = self._build_txt_lookup_cache()
+
+        for _, row in self.excel_data.iterrows():
+            rsid = str(row['B']).strip()
+            if not rsid or rsid == 'nan':
+                continue
+
+            # Get RESULT from TXT data using cache
+            result_value = txt_cache.get(rsid)
+            if not result_value:
+                continue
+
+            # Find matching color column
+            color_columns = ['D', 'E', 'F', 'G', 'H']
+            for col in color_columns:
+                cell_value = str(row[col]).strip().upper()
+                if not cell_value or cell_value == 'NAN':
+                    continue
+
+                # Handle comma-separated values
+                cell_values = [v.strip().upper() for v in cell_value.split(',')]
+                if result_value in cell_values:
+                    self._rsid_color_cache[rsid] = self.COLOR_MAP[col]
+                    break
+
+        logger.info(f"RSID-color cache built with {len(self._rsid_color_cache)} color mappings")
+        return self._rsid_color_cache
+
     def find_color_for_rsid(self, rsid: str) -> Optional[RGBColor]:
         """
-        Find the appropriate color for an RSID according to the workflow:
-        1. Find the RSID in Excel column B 
-        2. Find the same RSID in TXT data and get its RESULT value
-        3. Check which column (D, E, F, G, H) in Excel contains this RESULT value
-        4. Return the corresponding color
+        Find the appropriate color for an RSID using pre-built cache.
+        Much faster than the original implementation.
         """
-        if self.excel_data is None or self.txt_data is None:
-            raise ValueError("Excel and TXT data must be loaded first")
-        
-        # Step 1: Find the RSID in Excel column B
         rsid_str = str(rsid).strip()
-        excel_matches = self.excel_data[self.excel_data['B'].astype(str).str.strip() == rsid_str]
-        if excel_matches.empty:
-            logger.debug(f"RSID {rsid} not found in Excel column B")
-            return None
-        
-        excel_row = excel_matches.iloc[0]
-        
-        # Step 2: Find the RSID in TXT data and get its RESULT value
-        txt_matches = self.txt_data[self.txt_data['RSID'].astype(str).str.strip() == rsid_str]
-        if txt_matches.empty:
-            logger.debug(f"RSID {rsid} not found in TXT data")
-            return None
-        
-        txt_row = txt_matches.iloc[0]
-        result_value = str(txt_row['RESULT']).strip().upper()
-        logger.debug(f"RSID {rsid} has RESULT value: {result_value}")
-        
-        # Step 3 & 4: Check which column (D, E, F, G, H) contains this RESULT value
-        color_columns = ['D', 'E', 'F', 'G', 'H']
-        
-        for col in color_columns:
-            cell_value = str(excel_row[col]).strip().upper()
-            logger.debug(f"Checking column {col}: '{cell_value}' vs RESULT '{result_value}'")
-            
-            if not cell_value or cell_value == 'NAN':
-                continue
-            
-            # Handle comma-separated values
-            cell_values = [v.strip().upper() for v in cell_value.split(',')]
-            
-            if result_value in cell_values:
-                logger.debug(f"Match found in column {col}: {result_value}")
-                return self.COLOR_MAP[col]
-        
-        logger.debug(f"No color match found for RSID {rsid} with RESULT {result_value}")
-        return None
+        color_cache = self._build_rsid_color_cache()
+        return color_cache.get(rsid_str)
     
+    def _apply_colors_to_shapes_optimized(self, rsid_color_map):
+        """
+        Optimized method to apply colors to shapes using pre-built mappings.
+        Only iterates through shapes once instead of once per RSID.
+        """
+        if not rsid_color_map:
+            return 0
+
+        logger.info(f"Applying colors to shapes for {len(rsid_color_map)} RSIDs...")
+        shape_map = self._build_shape_rsid_map()
+        colored_count = 0
+
+        # Batch apply colors using the pre-built shape map
+        for rsid, color in rsid_color_map.items():
+            shapes = shape_map.get(rsid, [])
+            for shape in shapes:
+                try:
+                    if color:
+                        shape.fill.solid()
+                        shape.fill.fore_color.rgb = color
+                        colored_count += 1
+                        logger.debug(f"Applied {color} to RSID {rsid}")
+                except Exception as e:
+                    logger.warning(f"Error applying color to shape for RSID {rsid}: {e}")
+
+        logger.info(f"Color application complete: {colored_count} shapes colored")
+        return colored_count
+
     def find_and_modify_text_in_group(self, rsid: str, new_color):
         """
-        Find and modify text within groups by accessing the underlying XML
+        Legacy method - kept for backward compatibility.
+        For better performance, use process_presentation_optimized() instead.
         """
-        
         rsid_str = str(rsid).strip()
-        
-        for slide_idx, slide in enumerate(self.presentation.slides):
-            for shape_idx, shape in enumerate(slide.shapes):
-                
-                # Handle individual shapes as before
-                if hasattr(shape, 'text_frame') and shape.text_frame:
-                    try:
-                        text_content = shape.text_frame.text.strip()
-                        if text_content == rsid_str:
-                            if new_color:
-                                shape.fill.solid()
-                                shape.fill.fore_color.rgb = new_color
-                    except Exception as e:
-                        logger.warning(f"Error modifying group shape: {e}")
+        shape_map = self._build_shape_rsid_map()
 
-                elif hasattr(shape, 'shape_type') and shape.shape_type == 6:  # Group
-                    try:
-                        # Access the group's shapes collection
-                        for sub_shape in shape.shapes:
-                            if hasattr(sub_shape, 'text_frame') and sub_shape.text_frame:
-                                text_content = sub_shape.text_frame.text.strip()
-                                if text_content == rsid_str:
-                                    # Force fill color change
-                                    if new_color:
-                                        sub_shape.fill.solid()
-                                        sub_shape.fill.fore_color.rgb = new_color
-                            elif hasattr(sub_shape, 'shape_type') and sub_shape.shape_type == 6:  # Group
-                                try:
-                                    # Access the group's shapes collection (Level 2)
-                                    for sub_sub_shape in sub_shape.shapes:
-                                        if hasattr(sub_sub_shape, 'text_frame') and sub_sub_shape.text_frame:
-                                            text_content = sub_sub_shape.text_frame.text.strip()
-                                            if text_content == rsid_str:
-                                                # Force fill color change
-                                                if new_color:
-                                                    sub_sub_shape.fill.solid()
-                                                    sub_sub_shape.fill.fore_color.rgb = new_color
-                                        elif hasattr(sub_sub_shape, 'shape_type') and sub_sub_shape.shape_type == 6:  # Nested group (Level 3)
-                                            try:
-                                                # Access the nested group's shapes collection
-                                                for sub_sub_sub_shape in sub_sub_shape.shapes:
-                                                    if hasattr(sub_sub_sub_shape, 'text_frame') and sub_sub_sub_shape.text_frame:
-                                                        text_content = sub_sub_sub_shape.text_frame.text.strip()
-                                                        if text_content == rsid_str:
-                                                            # Force fill color change
-                                                            if new_color:
-                                                                sub_sub_sub_shape.fill.solid()
-                                                                sub_sub_sub_shape.fill.fore_color.rgb = new_color
-                                            except Exception as e:
-                                                logger.warning(f"Error modifying nested group shape (Level 3): {e}")
-                            
-                                except Exception as e:
-                                    logger.warning(f"Error modifying group shape: {e}")
-                                    
-                    except Exception as e:
-                        logger.warning(f"Error modifying group shape: {e}")
+        shapes = shape_map.get(rsid_str, [])
+        for shape in shapes:
+            try:
+                if new_color:
+                    shape.fill.solid()
+                    shape.fill.fore_color.rgb = new_color
+            except Exception as e:
+                logger.warning(f"Error modifying shape for RSID {rsid}: {e}")
 
     def apply_background_color(self, shape, color: RGBColor):
         if hasattr(shape, 'fill'):
@@ -352,6 +400,93 @@ class PPTProcessor:
                 progress_callback(progress)
         
         logger.info(f"Processing complete. Colored: {results['colored']}, Skipped: {results['skipped']}")
+        return results
+
+    def process_presentation_optimized(self, progress_callback=None) -> Dict[str, int]:
+        """
+        OPTIMIZED presentation processing with significant performance improvements:
+        - Pre-builds lookup caches once instead of searching repeatedly
+        - Uses reverse lookup: finds all shapes first, then applies colors in batch
+        - Reduces complexity from O(n*m) to O(n+m)
+        - Expected speedup: 10-100x faster depending on file sizes
+        """
+        if not all([self.excel_data is not None, self.txt_data is not None, self.presentation is not None]):
+            raise ValueError("Excel data, TXT data, and presentation must be loaded first")
+
+        results = {
+            'total_records': 0,
+            'processed': 0,
+            'colored': 0,
+            'skipped': 0,
+            'cache_build_time': 0,
+            'color_apply_time': 0
+        }
+
+        import time
+        start_time = time.time()
+
+        total_records = len(self.excel_data)
+        results['total_records'] = total_records
+
+        logger.info(f"Starting OPTIMIZED processing of {total_records} Excel records")
+
+        # Replace PATIENT and DATE information before processing colors
+        self.replace_patient_and_date_info()
+
+        # OPTIMIZATION 1: Build all caches upfront (one-time cost)
+        cache_start = time.time()
+        logger.info("Building optimization caches...")
+
+        # Build caches in optimal order
+        txt_cache = self._build_txt_lookup_cache()
+        shape_map = self._build_shape_rsid_map()
+        color_cache = self._build_rsid_color_cache()
+
+        cache_time = time.time() - cache_start
+        results['cache_build_time'] = cache_time
+        logger.info(f"Cache building completed in {cache_time:.2f}s")
+
+        # OPTIMIZATION 2: Filter only RSIDs that exist in both Excel and PowerPoint
+        excel_rsids = set()
+        for _, row in self.excel_data.iterrows():
+            rsid = str(row['B']).strip()
+            if rsid and rsid != 'nan':
+                excel_rsids.add(rsid)
+
+        ppt_rsids = set(shape_map.keys())
+        matching_rsids = excel_rsids.intersection(ppt_rsids)
+
+        logger.info(f"Found {len(matching_rsids)} RSIDs that exist in both Excel ({len(excel_rsids)}) and PowerPoint ({len(ppt_rsids)})")
+
+        # OPTIMIZATION 3: Build final color mapping only for matching RSIDs
+        final_color_map = {}
+        for rsid in matching_rsids:
+            color = color_cache.get(rsid)
+            if color:
+                final_color_map[rsid] = color
+                results['processed'] += 1
+            else:
+                results['skipped'] += 1
+
+        logger.info(f"Color mapping built: {len(final_color_map)} RSIDs will be colored")
+
+        # OPTIMIZATION 4: Apply all colors in one batch operation
+        apply_start = time.time()
+        colored_count = self._apply_colors_to_shapes_optimized(final_color_map)
+        apply_time = time.time() - apply_start
+
+        results['colored'] = colored_count
+        results['color_apply_time'] = apply_time
+
+        # Update progress
+        if progress_callback:
+            progress_callback(100)
+
+        total_time = time.time() - start_time
+        logger.info(f"OPTIMIZED processing complete in {total_time:.2f}s (cache: {cache_time:.2f}s, apply: {apply_time:.2f}s)")
+        logger.info(f"Performance: {total_records/total_time:.1f} records/sec, {colored_count/total_time:.1f} shapes/sec")
+        logger.info(f"Results: Colored: {results['colored']}, Skipped: {results['skipped']}")
+
         return results
     
     def save_presentation(self, output_path: str = None) -> str:
