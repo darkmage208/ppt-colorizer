@@ -54,6 +54,14 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 800M
+          cpus: '1.0'
+        reservations:
+          memory: 400M
+          cpus: '0.5'
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
   celery:
@@ -80,43 +88,12 @@ services:
     deploy:
       resources:
         limits:
-          memory: 4G
-          cpus: '4.0'
-        reservations:
-          memory: 2G
-          cpus: '2.0'
-    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=6 -Q ppt_processing --pool=prefork --hostname=worker1@%h
-
-  celery-worker2:
-    build: ./backend
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-ppt_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-ppt_colorizer}
-      - SECRET_KEY=${SECRET_KEY}
-      - REDIS_URL=redis://redis:6379
-      - CELERY_BROKER_URL=redis://redis:6379
-      - CELERY_RESULT_BACKEND=redis://redis:6379
-      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
-      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
-      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
-      - R2_BUCKET_NAME=${R2_BUCKET_NAME}
-      - R2_PUBLIC_URL=${R2_PUBLIC_URL}
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - app-network
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 3G
+          memory: 2.5G
           cpus: '3.0'
         reservations:
           memory: 1G
           cpus: '1.0'
-    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=6 -Q ppt_processing --pool=prefork --hostname=worker2@%h
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 -Q ppt_processing --pool=prefork
 
   flower:
     build: ./backend

@@ -18,7 +18,7 @@ celery_app.conf.update(
     result_serializer='json',
     timezone='UTC',
     enable_utc=True,
-    worker_concurrency=12,  # Optimized for 8GB RAM
+    worker_concurrency=4,  # Optimized for 4GB RAM
     task_routes={
         'app.tasks.process_ppt_job': {'queue': 'ppt_processing'},
     },
