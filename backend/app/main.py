@@ -32,11 +32,11 @@ app.add_middleware(
     expose_headers=["Content-Disposition"],
 )
 
-app.include_router(auth.router)
-app.include_router(templates.router)
-app.include_router(excel_data.router)
-app.include_router(jobs.router)
-app.include_router(users.router)
+app.include_router(auth.router, prefix="/api")
+app.include_router(templates.router, prefix="/api")
+app.include_router(excel_data.router, prefix="/api")
+app.include_router(jobs.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
 
 @app.get("/")
 def root():

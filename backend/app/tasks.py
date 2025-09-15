@@ -2,7 +2,7 @@ from celery import Celery
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 from .config import settings
-from .models import Job, JobStatus
+from .models import Job, JobStatus, User
 from .ppt_processor import PPTProcessor
 import traceback
 
@@ -18,6 +18,14 @@ celery_app.conf.update(
     result_serializer='json',
     timezone='UTC',
     enable_utc=True,
+    worker_concurrency=8,
+    task_routes={
+        'app.tasks.process_ppt_job': {'queue': 'ppt_processing'},
+    },
+    task_default_queue='ppt_processing',
+    worker_prefetch_multiplier=1,
+    task_acks_late=True,
+    worker_disable_rate_limits=True,
 )
 
 engine = create_engine(settings.database_url)
@@ -53,7 +61,7 @@ def process_ppt_job(job_id: int):
             processor.load_presentation(job.template.file_path)
             update_progress(30)
             
-            results = processor.process_presentation(progress_callback=lambda p: update_progress(30 + int(p * 0.5)))
+            results = processor.process_presentation_optimized(progress_callback=lambda p: update_progress(30 + int(p * 0.5)))
             update_progress(80)
             
             pptx_key = processor.save_presentation()
@@ -65,8 +73,14 @@ def process_ppt_job(job_id: int):
             # update_progress(100)
             
             job.status = JobStatus.DONE
+
+            # Increment user's processing count
+            user = db.query(User).filter(User.id == job.user_id).first()
+            if user:
+                user.processing_count = (user.processing_count or 0) + 1
+
             db.commit()
-            
+
             return {
                 "success": True,
                 "results": results,

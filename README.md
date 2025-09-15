@@ -37,32 +37,47 @@ A web-based platform for Genetics Analysis and Biosystems Optimization that auto
 - Docker and Docker Compose
 - Git
 
-### Installation
+### Local Development (Default)
 
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd gabo
+   cd ppt-excel-colorizer
    ```
 
-2. **Environment Setup**
+2. **Start local development environment**
    ```bash
-   # Copy environment template
-   cp backend/.env.example backend/.env
-   
-   # Update the .env file with your settings
-   nano backend/.env
+   # Method 1: Direct Docker Compose (local development is default)
+   docker compose up -d
+
+   # Method 2: Using convenience script
+   chmod +x dev-start.sh
+   ./dev-start.sh
    ```
 
-3. **Start the application**
-   ```bash
-   docker-compose up --build
-   ```
-
-4. **Access the application**
+3. **Access the application**
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:8000
    - API Documentation: http://localhost:8000/docs
+
+### Production Deployment
+
+1. **Set up production environment**
+   ```bash
+   # Copy and configure production environment
+   cp .env.local .env
+   # Edit .env with production values (database passwords, secrets, R2 credentials)
+   ```
+
+2. **Deploy to production**
+   ```bash
+   # Method 1: Direct Docker Compose
+   docker compose -f docker-compose.prod.yml up -d
+
+   # Method 2: Using convenience script
+   chmod +x prod-deploy.sh
+   ./prod-deploy.sh
+   ```
 
 ### First Time Setup
 
@@ -133,38 +148,55 @@ Tab-separated file with columns:
 - `GET /users/` - List all users
 - `PUT /users/{id}` - Update user role/status
 
-## Development
+## Environment Documentation
 
-### Backend Development
+For detailed setup instructions and environment configuration:
+
+- **[ENVIRONMENT_SETUP.md](./ENVIRONMENT_SETUP.md)** - Complete guide for both local and production
+- **[LOCAL_DEVELOPMENT.md](./LOCAL_DEVELOPMENT.md)** - Detailed local development guide
+
+### Available Commands
+
+#### Local Development
 ```bash
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+# Start development environment (default)
+docker compose up -d
+./dev-start.sh
+
+# View logs
+docker compose logs -f
+./dev-logs.sh
+
+# Stop services
+docker compose down
+./dev-stop.sh
 ```
 
-### Frontend Development
+#### Production
 ```bash
-cd frontend
-npm install
-npm run dev
+# Deploy production environment
+docker compose -f docker-compose.prod.yml up -d
+./prod-deploy.sh
+
+# View production logs
+docker compose -f docker-compose.prod.yml logs -f
 ```
 
-### Database Migrations
+#### Database Migrations
 ```bash
-cd backend
-alembic revision --autogenerate -m "Description"
-alembic upgrade head
+# Local development
+docker compose exec backend alembic upgrade head
+
+# Production
+docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
 ```
 
-## Deployment
+## Key Configuration Files
 
-### Production Docker Compose
-Update `docker-compose.yml` for production:
-- Change database passwords
-- Update SECRET_KEY
-- Configure domain names
-- Set up SSL certificates
-- Update Cloudflare R2 credentials
+- `docker-compose.yml` - **Default local development**
+- `docker-compose.prod.yml` - Production environment
+- `.env.local` - Local development variables
+- `.env` - Production variables (keep secure!)
 
 ### Environment Variables
 Key environment variables to configure:
@@ -215,9 +247,15 @@ The system uses these color mappings:
    - Ensure database exists
 
 ### Logs
-- Backend logs: `docker-compose logs backend`
-- Celery logs: `docker-compose logs celery`
-- Frontend logs: `docker-compose logs frontend`
+#### Local Development
+- All logs: `docker compose logs -f` or `./dev-logs.sh`
+- Backend logs: `docker compose logs backend`
+- Celery logs: `docker compose logs celery`
+- Frontend logs: `docker compose logs frontend`
+
+#### Production
+- All logs: `docker compose -f docker-compose.prod.yml logs -f`
+- Backend logs: `docker compose -f docker-compose.prod.yml logs backend`
 
 ## Contributing
 
