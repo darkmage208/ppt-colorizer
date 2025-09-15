@@ -18,15 +18,22 @@ celery_app.conf.update(
     result_serializer='json',
     timezone='UTC',
     enable_utc=True,
-    worker_concurrency=8,  # Reduced for production memory constraints
+    worker_concurrency=12,  # Optimized for 8GB RAM
     task_routes={
         'app.tasks.process_ppt_job': {'queue': 'ppt_processing'},
     },
     task_default_queue='ppt_processing',
-    worker_prefetch_multiplier=1,
+    worker_prefetch_multiplier=2,  # Allow pre-fetching for better throughput
     task_acks_late=True,
     worker_disable_rate_limits=True,
-    broker_connection_retry_on_startup=True,  # Suppress warning
+    broker_connection_retry_on_startup=True,
+    # Memory management
+    worker_max_tasks_per_child=50,  # Restart workers after 50 tasks to prevent memory leaks
+    task_soft_time_limit=1800,  # 30 minutes soft limit
+    task_time_limit=2400,  # 40 minutes hard limit
+    # Performance optimizations
+    worker_pool_restarts=True,
+    task_reject_on_worker_lost=True,
 )
 
 engine = create_engine(settings.database_url)
