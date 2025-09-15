@@ -61,15 +61,15 @@ def process_ppt_job(job_id: int):
             # Set the Excel template name as patient name
             processor.set_template_name(job.excel_data.name)
             processor.load_excel_data(job.excel_data.file_path)
-            update_progress(10)
-            
-            processor.load_txt_data(job.txt_file_path, job.txt_filename)
             update_progress(20)
             
-            processor.load_presentation(job.template.file_path)
-            update_progress(30)
+            processor.load_txt_data(job.txt_file_path, job.txt_filename)
+            update_progress(40)
             
-            results = processor.process_presentation_optimized(progress_callback=lambda p: update_progress(30 + int(p * 0.5)))
+            processor.load_presentation(job.template.file_path)
+            update_progress(60)
+            
+            results = processor.process_presentation_optimized(progress_callback=lambda p: update_progress(60 + int(p * 0.2)))
             update_progress(80)
             
             pptx_key = processor.save_presentation()
