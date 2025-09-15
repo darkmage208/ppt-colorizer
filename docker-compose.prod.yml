@@ -83,7 +83,7 @@ services:
           memory: 800M
         reservations:
           memory: 400M
-    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=1 --prefetch-multiplier=1
+    command: celery -A app.tasks.celery_app worker --loglevel=info
 
   frontend:
     build: 
