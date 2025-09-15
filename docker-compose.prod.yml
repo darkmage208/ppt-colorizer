@@ -77,7 +77,13 @@ services:
     networks:
       - app-network
     restart: unless-stopped
-    command: celery -A app.tasks.celery_app worker --loglevel=info
+    deploy:
+      resources:
+        limits:
+          memory: 800M
+        reservations:
+          memory: 400M
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=1 --prefetch-multiplier=1
 
   frontend:
     build: 
