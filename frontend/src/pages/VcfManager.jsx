@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { toast } from 'react-hot-toast'
 import api from '../utils/api'
+import ConfirmDialog from '../components/ConfirmDialog'
 import {
   Upload,
   Download,
@@ -23,6 +24,17 @@ const VcfManager = () => {
   const [selectedFile, setSelectedFile] = useState(null)
   const [fileName, setFileName] = useState('')
   const [activeTab, setActiveTab] = useState('files')
+
+  // Confirmation dialog states
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    type: 'danger',
+    title: '',
+    message: '',
+    onConfirm: null,
+    confirmText: 'Delete',
+    cancelText: 'Cancel'
+  })
 
   // Check if user is superadmin
   if (user?.role !== 'superadmin') {
@@ -144,6 +156,23 @@ const VcfManager = () => {
     }
   }, [activeTab, conversions])
 
+  // Helper function to show confirmation dialog
+  const showConfirmDialog = (title, message, onConfirm, type = 'danger', confirmText = 'Delete') => {
+    setConfirmDialog({
+      isOpen: true,
+      type,
+      title,
+      message,
+      onConfirm,
+      confirmText,
+      cancelText: 'Cancel'
+    })
+  }
+
+  const closeConfirmDialog = () => {
+    setConfirmDialog(prev => ({ ...prev, isOpen: false }))
+  }
+
   const handleFileSelect = (event) => {
     const file = event.target.files[0]
     if (file) {
@@ -195,34 +224,57 @@ const VcfManager = () => {
     }
   }
 
-  const handleDelete = async (fileId) => {
-    if (!confirm('Are you sure you want to delete this VCF file? This will also delete all associated conversion files.')) {
-      return
-    }
+  const handleDelete = (fileId) => {
+    const vcfFile = vcfFiles.find(f => f.id === fileId)
+    const fileName = vcfFile?.name || 'this file'
 
-    try {
-      await api.delete(`/vcf/files/${fileId}`)
-      toast.success('VCF file deleted successfully!')
-      fetchVcfFiles()
-    } catch (error) {
-      console.error('Delete error:', error)
-      toast.error('Failed to delete file')
-    }
+    showConfirmDialog(
+      'Delete VCF File',
+      `Are you sure you want to delete "${fileName}"? This action will permanently remove the file and all associated conversion data. This cannot be undone.`,
+      async () => {
+        try {
+          await api.delete(`/vcf/files/${fileId}`)
+          toast.success('VCF file deleted successfully!')
+          fetchVcfFiles()
+        } catch (error) {
+          console.error('Delete error:', error)
+          toast.error('Failed to delete file')
+        }
+      },
+      'danger',
+      'Delete File'
+    )
   }
 
-  const handleDeleteConversion = async (conversionId) => {
-    if (!confirm('Are you sure you want to delete this conversion? This will also delete the generated TXT file if it exists.')) {
-      return
-    }
+  const handleDeleteConversion = (conversionId) => {
+    const conversion = conversions.find(c => c.id === conversionId)
+    const fileName = conversion?.vcf_file?.name || 'this conversion'
+    const status = conversion?.status?.toLowerCase()
 
-    try {
-      await api.delete(`/vcf/conversions/${conversionId}`)
-      toast.success('Conversion deleted successfully!')
-      fetchConversions()
-    } catch (error) {
-      console.error('Delete conversion error:', error)
-      toast.error('Failed to delete conversion')
+    let message = `Are you sure you want to delete the conversion for "${fileName}"?`
+    if (status === 'completed') {
+      message += ' This will permanently remove the conversion record and the generated TXT file.'
+    } else if (status === 'processing') {
+      message += ' The conversion is currently in progress and will be stopped.'
     }
+    message += ' This action cannot be undone.'
+
+    showConfirmDialog(
+      'Delete Conversion',
+      message,
+      async () => {
+        try {
+          await api.delete(`/vcf/conversions/${conversionId}`)
+          toast.success('Conversion deleted successfully!')
+          fetchConversions()
+        } catch (error) {
+          console.error('Delete conversion error:', error)
+          toast.error('Failed to delete conversion')
+        }
+      },
+      'danger',
+      'Delete Conversion'
+    )
   }
 
   const handleConvert = async (fileId) => {
@@ -566,6 +618,18 @@ const VcfManager = () => {
           )}
         </div>
       )}
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={closeConfirmDialog}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        type={confirmDialog.type}
+      />
     </div>
   )
 }
