@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import auth, templates, excel_data, jobs, users
+from .routers import auth, templates, excel_data, jobs, users, vcf
 from .database import engine
 from . import models
 from .config import settings
@@ -37,6 +37,7 @@ app.include_router(templates.router, prefix="/api")
 app.include_router(excel_data.router, prefix="/api")
 app.include_router(jobs.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
+app.include_router(vcf.router, prefix="/api")
 
 @app.get("/")
 def root():

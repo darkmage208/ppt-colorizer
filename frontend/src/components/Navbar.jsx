@@ -1,6 +1,6 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { LogOut, Settings, User, LayoutDashboard, Briefcase, Menu, X } from 'lucide-react'
+import { LogOut, Settings, User, LayoutDashboard, Briefcase, Menu, X, FileText } from 'lucide-react'
 import { useState } from 'react'
 
 const Navbar = () => {
@@ -63,13 +63,27 @@ const Navbar = () => {
               <Link
                 to="/admin"
                 className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  isActiveRoute('/admin') 
-                    ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md dark:shadow-violet-500/20' 
+                  isActiveRoute('/admin')
+                    ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md dark:shadow-violet-500/20'
                     : 'text-gray-600 dark:text-dark-muted hover:bg-purple-50 dark:hover:bg-dark-hover hover:text-purple-600 dark:hover:text-violet-400'
                 }`}
               >
                 <Settings className="h-4 w-4" />
                 <span>Admin</span>
+              </Link>
+            )}
+
+            {user.role === 'superadmin' && (
+              <Link
+                to="/vcf"
+                className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  isActiveRoute('/vcf')
+                    ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-md dark:shadow-red-500/20'
+                    : 'text-gray-600 dark:text-dark-muted hover:bg-red-50 dark:hover:bg-dark-hover hover:text-red-600 dark:hover:text-red-400'
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+                <span>VCF Manager</span>
               </Link>
             )}
             
@@ -169,13 +183,28 @@ const Navbar = () => {
                   to="/admin"
                   onClick={() => setIsMenuOpen(false)}
                   className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200 ${
-                    isActiveRoute('/admin') 
-                      ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md' 
+                    isActiveRoute('/admin')
+                      ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md'
                       : 'text-gray-600 dark:text-dark-muted hover:bg-gray-50 dark:hover:bg-dark-hover'
                   }`}
                 >
                   <Settings className="h-5 w-5" />
                   <span>Admin</span>
+                </Link>
+              )}
+
+              {user.role === 'superadmin' && (
+                <Link
+                  to="/vcf"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200 ${
+                    isActiveRoute('/vcf')
+                      ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-md'
+                      : 'text-gray-600 dark:text-dark-muted hover:bg-gray-50 dark:hover:bg-dark-hover'
+                  }`}
+                >
+                  <FileText className="h-5 w-5" />
+                  <span>VCF Manager</span>
                 </Link>
               )}
               

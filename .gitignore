@@ -238,7 +238,7 @@ dist/
 
 # Rollup build output
 dist/
-
+outputs/
 # Storybook build outputs
 .out
 .storybook-out
@@ -303,6 +303,10 @@ Thumbs.db
 uploads/
 media/
 static/media/
+
+# VCF processing output files
+backend/outputs/
+backend/uploads/
 
 # Alembic
 alembic/versions/*.py
