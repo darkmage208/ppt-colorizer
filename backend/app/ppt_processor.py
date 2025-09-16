@@ -132,41 +132,145 @@ class PPTProcessor:
     
     def replace_patient_and_date_info(self):
         """
-        Replace "PATIENT: WAIT" with patient name and "DATE: WAIT" with current date
-        These strings may be grouped, so we need to search through all text elements
+        Find text frames containing "PATIENT" heading and reformat the entire content
+        to the standard format: "PATIENT: [name]\nDATE: [date]"
+        Searches recursively through groups with depth control.
         """
         if not self.presentation:
             return
-        
+
         patient_name = self.extract_patient_name()
         current_date = self.get_current_date()
-        
+
         for slide_idx, slide in enumerate(self.presentation.slides):
             for shape_idx, shape in enumerate(slide.shapes):
-                self._replace_text_in_shape(shape, "PATIENT: WAIT", f"PATIENT: {patient_name}")
-                self._replace_text_in_shape(shape, "WAIT", f"{current_date}")
-    
-    def _replace_text_in_shape(self, shape, old_text: str, new_text: str):
+                self._find_and_update_patient_text_frame(shape, patient_name, current_date)
+
+    def _find_and_update_patient_text_frame(self, shape, patient_name: str, current_date: str, depth: int = 0, max_depth: int = 3):
         """
-        Replace text in a shape, handling both individual shapes and groups
+        Recursively search for text frames containing "PATIENT" and reformat them.
+
+        Args:
+            shape: The shape to examine
+            patient_name: Patient name to use
+            current_date: Current date to use
+            depth: Current recursion depth
+            max_depth: Maximum recursion depth for group searching
         """
         try:
             # Handle individual text frames
             if hasattr(shape, 'text_frame') and shape.text_frame:
-                for paragraph in shape.text_frame.paragraphs:
-                    for run in paragraph.runs:
-                        if old_text in run.text:
-                            run.text = run.text.replace(old_text, new_text)
-                            logger.debug(f"Replaced '{old_text}' with '{new_text}' in text run")
-            
-            # Handle groups (up to 3 levels deep as in the existing code)
-            elif hasattr(shape, 'shape_type') and shape.shape_type == 6:  # Group
+                full_text = shape.text_frame.text.strip().upper()
+
+                # Check if this text frame contains "PATIENT" heading
+                if "PATIENT" in full_text:
+                    self._reformat_patient_text_frame(shape.text_frame, patient_name, current_date)
+                    logger.debug(f"Updated patient info text frame at depth {depth}")
+                    return True
+
+            # Handle groups recursively (with depth control)
+            elif hasattr(shape, 'shape_type') and shape.shape_type == 6 and depth < max_depth:  # Group
+                found = False
                 for sub_shape in shape.shapes:
-                    self._replace_text_in_shape(sub_shape, old_text, new_text)
-                        
+                    if self._find_and_update_patient_text_frame(sub_shape, patient_name, current_date, depth + 1, max_depth):
+                        found = True
+                return found
+
         except Exception as e:
-            logger.warning(f"Error replacing text in shape: {e}")
-    
+            logger.warning(f"Error processing shape at depth {depth}: {e}")
+
+        return False
+
+    def _reformat_patient_text_frame(self, text_frame, patient_name: str, current_date: str):
+        """
+        Reformat the text frame content to the standard format while preserving all formatting:
+        PATIENT: [name]
+        DATE: [date]
+
+        Uses a careful approach to preserve existing formatting by copying font properties.
+
+        Args:
+            text_frame: The text frame to reformat
+            patient_name: Patient name to use
+            current_date: Current date to use
+        """
+        try:
+            # Store formatting properties from existing runs
+            saved_formats = []
+            for paragraph in text_frame.paragraphs:
+                para_formats = []
+                for run in paragraph.runs:
+                    # Save font properties
+                    font_props = {
+                        'name': getattr(run.font, 'name', None),
+                        'size': getattr(run.font, 'size', None),
+                        'bold': getattr(run.font, 'bold', None),
+                        'italic': getattr(run.font, 'italic', None),
+                        'underline': getattr(run.font, 'underline', None),
+                        'color': None
+                    }
+                    try:
+                        if hasattr(run.font, 'color') and hasattr(run.font.color, 'rgb'):
+                            font_props['color'] = run.font.color.rgb
+                    except:
+                        pass
+                    para_formats.append(font_props)
+                saved_formats.append(para_formats)
+
+            # Use the simplest approach: replace the entire text and then restore formatting
+            text_frame.text = f"PATIENT: {patient_name}\nDATE: {current_date}"
+
+            # Restore formatting to the new content
+            if saved_formats and text_frame.paragraphs:
+                # Apply formatting to patient line (first paragraph)
+                if len(text_frame.paragraphs) > 0 and len(saved_formats) > 0 and len(saved_formats[0]) > 0:
+                    first_para = text_frame.paragraphs[0]
+                    if first_para.runs:
+                        self._apply_font_properties(first_para.runs[0].font, saved_formats[0][0])
+
+                # Apply formatting to date line (second paragraph)
+                if len(text_frame.paragraphs) > 1:
+                    second_para = text_frame.paragraphs[1]
+                    if second_para.runs:
+                        # Use second paragraph formatting if available, otherwise use first
+                        format_to_use = saved_formats[1][0] if len(saved_formats) > 1 and saved_formats[1] else saved_formats[0][0]
+                        self._apply_font_properties(second_para.runs[0].font, format_to_use)
+
+            logger.debug(f"Reformatted text frame with patient: {patient_name}, date: {current_date}")
+
+        except Exception as e:
+            logger.warning(f"Error reformatting patient text frame: {e}")
+            # Fallback: try simple text replacement without formatting preservation
+            try:
+                text_frame.text = f"PATIENT: {patient_name}\nDATE: {current_date}"
+                logger.debug("Used fallback text replacement")
+            except Exception as fallback_error:
+                logger.error(f"Fallback text replacement also failed: {fallback_error}")
+
+    def _apply_font_properties(self, target_font, font_props):
+        """
+        Apply saved font properties to a target font object.
+
+        Args:
+            target_font: The font object to apply properties to
+            font_props: Dictionary of font properties to apply
+        """
+        try:
+            if font_props.get('name'):
+                target_font.name = font_props['name']
+            if font_props.get('size'):
+                target_font.size = font_props['size']
+            if font_props.get('bold') is not None:
+                target_font.bold = font_props['bold']
+            if font_props.get('italic') is not None:
+                target_font.italic = font_props['italic']
+            if font_props.get('underline') is not None:
+                target_font.underline = font_props['underline']
+            if font_props.get('color'):
+                target_font.color.rgb = font_props['color']
+        except Exception as e:
+            logger.debug(f"Could not apply some font properties: {e}")
+
     def load_presentation(self, ppt_file_path: str) -> Presentation:
         ppt_content = storage.download_file(ppt_file_path)
         ppt_io = io.BytesIO(ppt_content)
