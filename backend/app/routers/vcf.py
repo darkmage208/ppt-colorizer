@@ -42,13 +42,18 @@ async def upload_vcf_file(
     unique_filename = f"{uuid.uuid4()}{file_extension}"
     file_path = os.path.join(VCF_UPLOAD_DIR, unique_filename)
 
-    # Save file
+    # Stream file to disk (handles large files efficiently)
     try:
-        with open(file_path, "wb") as buffer:
-            content = await file.read()
-            buffer.write(content)
+        file_size = 0
+        chunk_size = 1024 * 1024  # 1MB chunks
 
-        file_size = len(content)
+        with open(file_path, "wb") as buffer:
+            while True:
+                chunk = await file.read(chunk_size)
+                if not chunk:
+                    break
+                buffer.write(chunk)
+                file_size += len(chunk)
 
         # Create database record
         db_vcf_file = VcfFile(
