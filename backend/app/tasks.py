@@ -2,7 +2,7 @@ from celery import Celery
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 from .config import settings
-from .models import Job, JobStatus
+from .models import Job, JobStatus, User
 from .ppt_processor import PPTProcessor
 import traceback
 
@@ -73,8 +73,14 @@ def process_ppt_job(job_id: int):
             # update_progress(100)
             
             job.status = JobStatus.DONE
+
+            # Increment user's processing count
+            user = db.query(User).filter(User.id == job.user_id).first()
+            if user:
+                user.processing_count = (user.processing_count or 0) + 1
+
             db.commit()
-            
+
             return {
                 "success": True,
                 "results": results,

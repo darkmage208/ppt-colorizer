@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
-from .models import UserRole, JobStatus
+from .models import UserRole, JobStatus, ConversionStatus
 
 class UserBase(BaseModel):
     username: str
@@ -20,8 +20,9 @@ class User(UserBase):
     id: int
     role: UserRole
     is_active: bool
+    processing_count: int
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -99,6 +100,53 @@ class JobWithDetails(Job):
     user: User
     template: Template
     excel_data: ExcelData
-    
+
+    class Config:
+        from_attributes = True
+
+class VcfFileBase(BaseModel):
+    name: str
+
+class VcfFileCreate(VcfFileBase):
+    pass
+
+class VcfFile(VcfFileBase):
+    id: int
+    filename: str
+    file_path: str
+    file_size: int
+    is_active: bool
+    uploaded_by: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class VcfConversionBase(BaseModel):
+    vcf_file_id: int
+
+class VcfConversionCreate(VcfConversionBase):
+    pass
+
+class VcfConversion(VcfConversionBase):
+    id: int
+    user_id: int
+    txt_filename: Optional[str] = None
+    txt_file_path: Optional[str] = None
+    status: ConversionStatus
+    error_message: Optional[str] = None
+    progress: int
+    total_variants: int
+    processed_variants: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class VcfConversionWithDetails(VcfConversion):
+    vcf_file: VcfFile
+    user: User
+
     class Config:
         from_attributes = True
