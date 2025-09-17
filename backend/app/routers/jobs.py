@@ -51,7 +51,7 @@ def get_jobs(
     return jobs
 
 @router.post("/", response_model=schemas.Job)
-def create_job(
+async def create_job(
     template_id: int,
     excel_data_id: int,
     txt_file: UploadFile = File(...),
@@ -60,21 +60,33 @@ def create_job(
 ):
     if not txt_file.filename.endswith('.txt'):
         raise HTTPException(status_code=400, detail="Only TXT files are allowed")
-    
+
     if not auth.check_txt_upload_permission(current_user):
         raise HTTPException(status_code=403, detail="Only admins and superadmins can upload TXT files")
-    
+
     template = db.query(models.Template).filter(models.Template.id == template_id).first()
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
-    
+
     excel_data = db.query(models.ExcelData).filter(models.ExcelData.id == excel_data_id).first()
     if not excel_data:
         raise HTTPException(status_code=404, detail="Excel data not found")
-    
+
     try:
-        txt_file_key = storage.upload_file(txt_file.file, txt_file.filename, "txt_files")
-        
+        # Stream large TXT files efficiently using chunked reading
+        file_data = io.BytesIO()
+        chunk_size = 1024 * 1024  # 1MB chunks
+
+        while True:
+            chunk = await txt_file.read(chunk_size)
+            if not chunk:
+                break
+            file_data.write(chunk)
+
+        file_data.seek(0)  # Reset position to beginning
+
+        txt_file_key = storage.upload_file(file_data, txt_file.filename, "txt_files")
+
         db_job = models.Job(
             user_id=current_user.id,
             template_id=template_id,
@@ -85,11 +97,11 @@ def create_job(
         db.add(db_job)
         db.commit()
         db.refresh(db_job)
-        
+
         process_ppt_job.delay(db_job.id)
-        
+
         return db_job
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create job: {str(e)}")
 
