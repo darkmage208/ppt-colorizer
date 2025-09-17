@@ -18,7 +18,7 @@ celery_app.conf.update(
     result_serializer='json',
     timezone='UTC',
     enable_utc=True,
-    worker_concurrency=4,  # Optimized for 4GB RAM
+    worker_concurrency=1,  # Single worker for large file processing (200MB+ files)
     task_routes={
         'app.tasks.process_ppt_job': {'queue': 'ppt_processing'},
     },
@@ -28,7 +28,7 @@ celery_app.conf.update(
     worker_disable_rate_limits=True,
     broker_connection_retry_on_startup=True,
     # Memory management
-    worker_max_tasks_per_child=50,  # Restart workers after 50 tasks to prevent memory leaks
+    worker_max_tasks_per_child=5,  # Restart workers very frequently for large file processing
     task_soft_time_limit=1800,  # 30 minutes soft limit
     task_time_limit=2400,  # 40 minutes hard limit
     # Performance optimizations
@@ -101,9 +101,16 @@ def process_ppt_job(job_id: int):
             job.error_message = str(e)
             db.commit()
             return {"error": str(e), "traceback": traceback.format_exc()}
-    
+
+        finally:
+            # Explicit memory cleanup
+            if 'processor' in locals():
+                del processor
+            import gc
+            gc.collect()
+
     except Exception as e:
         return {"error": f"Task execution failed: {str(e)}", "traceback": traceback.format_exc()}
-    
+
     finally:
         db.close()

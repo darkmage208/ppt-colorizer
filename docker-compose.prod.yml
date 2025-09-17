@@ -93,10 +93,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2.5G
+          memory: 4G
         reservations:
-          memory: 1G
-    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 -Q ppt_processing --pool=prefork
+          memory: 2G
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=1 -Q ppt_processing --pool=prefork
 
   flower:
     build: ./backend
