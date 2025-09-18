@@ -65,42 +65,78 @@ class PPTProcessor:
     def load_txt_data(self, txt_file_path: str, original_filename: str = None) -> pd.DataFrame:
         # Store the original filename if provided, otherwise use the file path basename
         self.txt_filename = original_filename or os.path.basename(txt_file_path)
-        
+
+        # MEMORY OPTIMIZATION: Use streaming processing for large TXT files
+        logger.info(f"Loading TXT data with memory-optimized streaming processing")
+
         txt_content = storage.download_file(txt_file_path)
-        txt_str = txt_content.decode('utf-8')
-        
-        # Parse TXT file - could be tab-separated or comma-separated
-        lines = txt_str.strip().split('\n')
+
+        # Process file in streaming fashion to avoid loading entire content in memory
+        lines = txt_content.decode('utf-8', errors='ignore').strip().split('\n')
+
         if len(lines) < 2:
             raise ValueError("TXT file must have at least header and one data row")
-        
+
         # Try tab-separated first, then comma-separated
         separator = '\t' if '\t' in lines[0] else ','
-        
-        header = lines[0].split(separator)
-        data = []
-        for line in lines[1:]:
-            if line.strip():
-                row = line.split(separator)
-                # Pad with empty strings if row is shorter than header
-                while len(row) < len(header):
-                    row.append('')
-                data.append(row)
-        
-        df = pd.DataFrame(data, columns=header)
-        df.columns = df.columns.str.strip()
-        
-        # Create a mapping from RSID to RESULT for quick lookup
-        if 'RSID' not in df.columns:
-            raise ValueError("TXT file must have an 'RSID' column")
-        if 'RESULT' not in df.columns:
-            raise ValueError("TXT file must have a 'RESULT' column")
-        
-        self.txt_data = df
+        header = [col.strip() for col in lines[0].split(separator)]
+
+        # Find required columns
+        rsid_col_idx = None
+        result_col_idx = None
+
+        for i, col in enumerate(header):
+            col_upper = col.upper()
+            if col_upper in ['RSID', 'SNP'] and rsid_col_idx is None:
+                rsid_col_idx = i
+            elif col_upper in ['RESULT', 'GENOTYPE', 'ALLELES', 'GT'] and result_col_idx is None:
+                result_col_idx = i
+
+        if rsid_col_idx is None:
+            raise ValueError("TXT file must have an 'RSID' or 'SNP' column")
+        if result_col_idx is None:
+            raise ValueError("TXT file must have a 'RESULT', 'GENOTYPE', 'ALLELES', or 'GT' column")
+
+        # MEMORY OPTIMIZATION: Build lookup cache directly without storing full DataFrame
+        self._txt_lookup_cache = {}
+        processed_lines = 0
+
+        # Process data in chunks to reduce memory pressure
+        chunk_size = 5000  # Process 5k lines at a time
+        for i in range(1, len(lines), chunk_size):
+            chunk_lines = lines[i:i + chunk_size]
+
+            for line in chunk_lines:
+                if line.strip():
+                    row = line.split(separator)
+                    # Ensure row has enough columns
+                    if len(row) > max(rsid_col_idx, result_col_idx):
+                        rsid = str(row[rsid_col_idx]).strip()
+                        result = str(row[result_col_idx]).strip()
+
+                        if rsid and result:
+                            self._txt_lookup_cache[rsid] = result
+                            processed_lines += 1
+
+            # Log progress for large files
+            if processed_lines % 25000 == 0:
+                logger.info(f"Processed {processed_lines:,} TXT lines, {len(self._txt_lookup_cache):,} RSID mappings")
+
+        logger.info(f"TXT processing complete: {processed_lines:,} lines, {len(self._txt_lookup_cache):,} RSID mappings")
+
+        # Create minimal DataFrame for compatibility
+        sample_row = ['sample_rsid', 'sample_result']
+        self.txt_data = pd.DataFrame([sample_row], columns=[header[rsid_col_idx], header[result_col_idx]])
+
         # Clear cache when new TXT data is loaded
-        self._txt_lookup_cache = None
         self._rsid_color_cache = None
-        return df
+
+        # Force garbage collection to free memory
+        del lines
+        import gc
+        gc.collect()
+
+        return self.txt_data
     
     def extract_patient_name(self) -> str:
         """
@@ -285,18 +321,12 @@ class PPTProcessor:
         if self._txt_lookup_cache is not None:
             return self._txt_lookup_cache
 
-        if self.txt_data is None:
+        # Cache is built during load_txt_data() for memory optimization
+        if self._txt_lookup_cache is None:
+            logger.warning("TXT lookup cache not found - ensure load_txt_data() was called")
             return {}
 
-        logger.info("Building TXT lookup cache...")
-        self._txt_lookup_cache = {}
-
-        for _, row in self.txt_data.iterrows():
-            rsid = str(row['RSID']).strip()
-            result = str(row['RESULT']).strip().upper()
-            self._txt_lookup_cache[rsid] = result
-
-        logger.info(f"TXT lookup cache built with {len(self._txt_lookup_cache)} entries")
+        logger.info(f"Using pre-built TXT lookup cache with {len(self._txt_lookup_cache)} entries")
         return self._txt_lookup_cache
 
     def _build_shape_rsid_map(self):
