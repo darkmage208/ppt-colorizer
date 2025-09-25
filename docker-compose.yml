@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-ppt_colorizer_local}
       POSTGRES_USER: ${POSTGRES_USER:-ppt_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdev123}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ppt_password}
     ports:
       - "5432:5432"
     volumes:
@@ -38,7 +38,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile.dev
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-ppt_user}:${POSTGRES_PASSWORD:-localdev123}@db:5432/${POSTGRES_DB:-ppt_colorizer_local}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ppt_user}:${POSTGRES_PASSWORD:-ppt_password}@db:5432/${POSTGRES_DB:-ppt_colorizer_local}
       - SECRET_KEY=${SECRET_KEY:-local-dev-secret-key-change-in-production}
       - REDIS_URL=redis://redis:6379
       - CELERY_BROKER_URL=redis://redis:6379
@@ -70,7 +70,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile.dev
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-ppt_user}:${POSTGRES_PASSWORD:-localdev123}@db:5432/${POSTGRES_DB:-ppt_colorizer_local}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ppt_user}:${POSTGRES_PASSWORD:-ppt_password}@db:5432/${POSTGRES_DB:-ppt_colorizer_local}
       - SECRET_KEY=${SECRET_KEY:-local-dev-secret-key-change-in-production}
       - REDIS_URL=redis://redis:6379
       - CELERY_BROKER_URL=redis://redis:6379

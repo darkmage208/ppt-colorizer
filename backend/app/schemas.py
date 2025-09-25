@@ -20,7 +20,7 @@ class User(UserBase):
     id: int
     role: UserRole
     is_active: bool
-    processing_count: int
+    processing_count: Optional[int] = 0
     created_at: datetime
 
     class Config:
