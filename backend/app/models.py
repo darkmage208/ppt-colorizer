@@ -111,6 +111,7 @@ class Job(Base):
     status = Column(Enum(JobStatus), default=JobStatus.QUEUED)
     output_pptx_path = Column(String)
     output_pdf_path = Column(String)
+    pdf_created = Column(Boolean, default=False)
     error_message = Column(Text)
     progress = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -88,6 +88,7 @@ class Job(JobBase):
     status: JobStatus
     output_pptx_path: Optional[str] = None
     output_pdf_path: Optional[str] = None
+    pdf_created: bool = False
     error_message: Optional[str] = None
     progress: int
     created_at: datetime

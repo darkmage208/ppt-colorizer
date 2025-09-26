@@ -75,11 +75,18 @@ def process_ppt_job(job_id: int):
             pptx_key = processor.save_presentation()
             job.output_pptx_path = pptx_key
             update_progress(100)
-            
-            pdf_key = processor.convert_to_pdf(pptx_key)
-            job.output_pdf_path = pdf_key
-            # update_progress(100)
-            
+
+            # Try to convert to PDF, set pdf_created flag only if successful
+            try:
+                pdf_key = processor.convert_to_pdf(pptx_key)
+                job.output_pdf_path = pdf_key
+                job.pdf_created = True
+            except Exception as pdf_error:
+                # Log the PDF conversion error but don't fail the entire job
+                job.pdf_created = False
+                job.output_pdf_path = None
+                print(f"PDF conversion failed: {str(pdf_error)}")
+
             job.status = JobStatus.DONE
 
             # Increment user's processing count

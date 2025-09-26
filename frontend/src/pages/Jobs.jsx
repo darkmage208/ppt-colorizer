@@ -341,14 +341,16 @@ const Jobs = () => {
                               <FileText className="h-3 w-3 mr-1 group-hover:scale-110 transition-transform" />
                               PPTX
                             </button>
-                            <button
-                              onClick={() => downloadFile(job.id, 'pdf')}
-                              className="inline-flex items-center px-3 py-2 border border-gray-200 dark:border-dark-border shadow-sm text-xs font-medium rounded-xl text-gray-700 dark:text-dark-text bg-white dark:bg-dark-card hover:bg-emerald-50 dark:hover:bg-dark-hover hover:border-emerald-300 dark:hover:border-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-all duration-200 group"
-                              title="Download PDF"
-                            >
-                              <Download className="h-3 w-3 mr-1 group-hover:scale-110 transition-transform" />
-                              PDF
-                            </button>
+                            {job.pdf_created && (
+                              <button
+                                onClick={() => downloadFile(job.id, 'pdf')}
+                                className="inline-flex items-center px-3 py-2 border border-gray-200 dark:border-dark-border shadow-sm text-xs font-medium rounded-xl text-gray-700 dark:text-dark-text bg-white dark:bg-dark-card hover:bg-emerald-50 dark:hover:bg-dark-hover hover:border-emerald-300 dark:hover:border-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-all duration-200 group"
+                                title="Download PDF"
+                              >
+                                <Download className="h-3 w-3 mr-1 group-hover:scale-110 transition-transform" />
+                                PDF
+                              </button>
+                            )}
                           </>
                         ) : job.status === 'processing' ? (
                           <span className="text-emerald-600 dark:text-emerald-400 font-medium text-sm">Processing...</span>
