@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
-import { Upload, Play, FileText, Database, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { Upload, Play, FileText, Database, Clock, CheckCircle, XCircle, AlertCircle, X, Plus } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { getFilenameWithoutExtension } from '../utils/util'
 
@@ -11,6 +11,8 @@ const Dashboard = () => {
   const [templates, setTemplates] = useState([])
   const [excelData, setExcelData] = useState([])
   const [recentJobs, setRecentJobs] = useState([])
+  const [userEmails, setUserEmails] = useState([])
+  const [emailInput, setEmailInput] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [jobUploadProgress, setJobUploadProgress] = useState(0)
@@ -30,7 +32,7 @@ const Dashboard = () => {
         api.get('/excel-data/'),
         api.get('/jobs/?limit=3')
       ])
-      
+
       setTemplates(templatesRes.data)
       setExcelData(excelRes.data)
       setRecentJobs(jobsRes.data)
@@ -55,9 +57,12 @@ const Dashboard = () => {
     setJobUploadProgress(0)
     const formData = new FormData()
     formData.append('txt_file', data.txt_file[0])
+    formData.append('template_id', data.template_id)
+    formData.append('excel_data_id', data.excel_data_id)
+    formData.append('user_emails', JSON.stringify(userEmails))
 
     try {
-      await api.post(`/jobs/?template_id=${data.template_id}&excel_data_id=${data.excel_data_id}`, formData, {
+      await api.post('/jobs/', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (progressEvent) => {
           const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total)
@@ -66,6 +71,8 @@ const Dashboard = () => {
       })
       toast.success('Job submitted successfully! Processing will begin shortly.')
       reset()
+      setUserEmails([])
+      setEmailInput('')
       fetchJobs()
     } catch (error) {
       const errorMessage = error.response?.data?.detail
@@ -77,6 +84,34 @@ const Dashboard = () => {
     } finally {
       setSubmitting(false)
       setJobUploadProgress(0)
+    }
+  }
+
+  const isValidEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
+
+  const addEmail = () => {
+    const trimmedEmail = emailInput.trim()
+    if (trimmedEmail && isValidEmail(trimmedEmail) && !userEmails.includes(trimmedEmail)) {
+      setUserEmails(prev => [...prev, trimmedEmail])
+      setEmailInput('')
+    } else if (!isValidEmail(trimmedEmail)) {
+      toast.error('Please enter a valid email address')
+    } else if (userEmails.includes(trimmedEmail)) {
+      toast.error('Email already added')
+    }
+  }
+
+  const removeEmail = (emailToRemove) => {
+    setUserEmails(prev => prev.filter(email => email !== emailToRemove))
+  }
+
+  const handleEmailInputKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      addEmail()
     }
   }
 
@@ -232,7 +267,7 @@ const Dashboard = () => {
                   Upload TXT File
                 </label>
                 <input
-                  {...register('txt_file', { 
+                  {...register('txt_file', {
                     required: 'Please upload a TXT file',
                     validate: {
                       fileType: (files) => {
@@ -252,6 +287,55 @@ const Dashboard = () => {
                 )}
                 <p className="mt-1 text-sm text-gray-500 dark:text-dark-muted">
                   Upload your TXT file containing RSID mappings
+                </p>
+              </div>
+
+              {/* Email Tag Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-2">
+                  Grant Access to Users (Optional)
+                </label>
+                <div className="space-y-3">
+                  <div className="flex">
+                    <input
+                      type="email"
+                      placeholder="Enter email address..."
+                      value={emailInput}
+                      onChange={(e) => setEmailInput(e.target.value)}
+                      onKeyDown={handleEmailInputKeyDown}
+                      className="flex-1 border border-gray-300 dark:border-dark-border rounded-l-md px-3 py-2 bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 dark:focus:ring-emerald-400 dark:focus:border-emerald-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={addEmail}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-800 text-white border border-emerald-600 dark:border-emerald-700 rounded-r-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 dark:focus:ring-emerald-400 dark:focus:border-emerald-400 transition-colors"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {userEmails.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {userEmails.map((email, index) => (
+                        <div
+                          key={index}
+                          className="inline-flex items-center px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 text-sm rounded-full border border-emerald-200 dark:border-emerald-700"
+                        >
+                          <span>{email}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeEmail(email)}
+                            className="ml-2 hover:text-emerald-600 dark:hover:text-emerald-400 focus:outline-none"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <p className="mt-1 text-sm text-gray-500 dark:text-dark-muted">
+                  Enter email addresses of users who can view and download this job's results. Press Enter or click + to add.
                 </p>
               </div>
 

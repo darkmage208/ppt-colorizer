@@ -78,7 +78,7 @@ class JobBase(BaseModel):
     excel_data_id: int
 
 class JobCreate(JobBase):
-    pass
+    user_emails: Optional[List[str]] = []
 
 class Job(JobBase):
     id: int
@@ -97,10 +97,20 @@ class Job(JobBase):
     class Config:
         from_attributes = True
 
+class JobPermission(BaseModel):
+    id: int
+    job_id: int
+    user_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 class JobWithDetails(Job):
     user: User
     template: Template
     excel_data: ExcelData
+    permissions: List[JobPermission] = []
 
     class Config:
         from_attributes = True

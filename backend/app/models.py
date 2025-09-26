@@ -99,6 +99,17 @@ class VcfConversion(Base):
     vcf_file = relationship("VcfFile", back_populates="conversions")
     user = relationship("User")
 
+class JobPermission(Base):
+    __tablename__ = "job_permissions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    job = relationship("Job", back_populates="permissions")
+    user = relationship("User")
+
 class Job(Base):
     __tablename__ = "jobs"
 
@@ -120,3 +131,4 @@ class Job(Base):
     user = relationship("User", back_populates="jobs")
     template = relationship("Template", back_populates="jobs")
     excel_data = relationship("ExcelData", back_populates="jobs")
+    permissions = relationship("JobPermission", back_populates="job", cascade="all, delete-orphan")
