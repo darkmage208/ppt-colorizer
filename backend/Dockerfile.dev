@@ -12,8 +12,8 @@ WORKDIR /app
 # Copy requirements first for better caching
 COPY requirements.txt .
 
-# Create a requirements file without reportlab for faster testing
-RUN pip install --no-cache-dir fastapi uvicorn sqlalchemy psycopg2-binary alembic python-jose python-multipart passlib bcrypt pandas openpyxl python-pptx boto3 python-dotenv pydantic pydantic-settings email-validator celery redis Pillow
+# Install Python dependencies from requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the application code
 COPY . .

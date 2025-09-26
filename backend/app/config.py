@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     celery_broker_url: str
     celery_result_backend: str
 
+    # ConvertAPI Configuration
+    convertapi_secret: Optional[str] = None
+
     @property
     def cors_origins_list(self) -> List[str]:
         """Parse CORS origins from comma-separated string"""

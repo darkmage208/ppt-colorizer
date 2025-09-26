@@ -76,8 +76,8 @@ def process_ppt_job(job_id: int):
             job.output_pptx_path = pptx_key
             update_progress(100)
             
-            # pdf_key = processor.convert_to_pdf(pptx_key)
-            # job.output_pdf_path = pdf_key
+            pdf_key = processor.convert_to_pdf(pptx_key)
+            job.output_pdf_path = pdf_key
             # update_progress(100)
             
             job.status = JobStatus.DONE
@@ -93,7 +93,7 @@ def process_ppt_job(job_id: int):
                 "success": True,
                 "results": results,
                 "pptx_path": pptx_key,
-                "pdf_path": "pdf_key"
+                "pdf_path": pdf_key
             }
             
         except Exception as e:

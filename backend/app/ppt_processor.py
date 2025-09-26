@@ -646,155 +646,98 @@ class PPTProcessor:
         file_key = storage.upload_file(output_io, output_path.split('/')[-1], "processed_presentations")
         logger.info(f"Presentation saved with key: {file_key}")
         return file_key
-    
-    # def convert_to_pdf(self, pptx_key: str) -> str:
-    #     import subprocess
-    #     import tempfile
-    #     import os
-    #     import shutil
-        
-    #     pptx_content = storage.download_file(pptx_key)
-        
-    #     with tempfile.NamedTemporaryFile(suffix='.pptx', delete=False) as temp_pptx:
-    #         temp_pptx.write(pptx_content)
-    #         temp_pptx_path = temp_pptx.name
-        
-    #     temp_pdf_dir = tempfile.mkdtemp()
-    #     temp_pdf_path = os.path.join(temp_pdf_dir, 'output.pdf')
-        
-    #     try:
-    #         # Method 1: Try LibreOffice (simple, basic conversion)
-    #         if shutil.which('libreoffice'):
-    #             logger.info("Using basic LibreOffice for PDF conversion")
-    #             subprocess.run([
-    #                 'libreoffice', '--headless', '--convert-to', 'pdf',
-    #                 '--outdir', temp_pdf_dir,
-    #                 temp_pptx_path
-    #             ], check=True, timeout=60)
-                
-    #             # LibreOffice creates PDF with same base name as input
-    #             actual_pdf_path = os.path.join(temp_pdf_dir, os.path.basename(temp_pptx_path).replace('.pptx', '.pdf'))
-                
-    #         # Method 2: Try unoconv
-    #         elif shutil.which('unoconv'):
-    #             logger.info("Using unoconv for PDF conversion")
-    #             subprocess.run([
-    #                 'unoconv', '-f', 'pdf', '-o', temp_pdf_path, temp_pptx_path
-    #             ], check=True, timeout=60)
-    #             actual_pdf_path = temp_pdf_path
-                
-    #         # Method 3: Fallback to Python-based solution (create basic PDF report)
-    #         else:
-    #             logger.warning("No LibreOffice or unoconv found, using fallback PDF generation")
-    #             actual_pdf_path = self._create_fallback_pdf(temp_pptx_path, temp_pdf_path)
-            
-    #         # Upload the generated PDF
-    #         logger.info(f"Uploading PDF from: {actual_pdf_path}")
-    #         if not os.path.exists(actual_pdf_path):
-    #             raise Exception(f"Generated PDF file not found: {actual_pdf_path}")
-            
-    #         pdf_size = os.path.getsize(actual_pdf_path)
-    #         logger.info(f"PDF file size: {pdf_size} bytes")
-            
-    #         with open(actual_pdf_path, 'rb') as pdf_file:
-    #             # Verify PDF header
-    #             pdf_file.seek(0)
-    #             header = pdf_file.read(8)
-    #             pdf_file.seek(0)
-                
-    #             if not header.startswith(b'%PDF-'):
-    #                 logger.warning(f"Generated file doesn't appear to be a valid PDF. Header: {header}")
-                
-    #             pdf_filename = pptx_key.replace('.pptx', '.pdf').split('/')[-1]
-    #             logger.info(f"Uploading PDF as: {pdf_filename}")
-                
-    #             try:
-    #                 pdf_key = storage.upload_file(pdf_file, pdf_filename, "processed_pdfs")
-    #                 logger.info(f"PDF uploaded successfully to: {pdf_key}")
-    #             except Exception as upload_error:
-    #                 logger.error(f"Failed to upload PDF to storage: {upload_error}")
-    #                 raise Exception(f"PDF upload failed: {upload_error}")
-            
-    #         return pdf_key
-            
-    #     finally:
-    #         # Clean up temporary files
-    #         try:
-    #             os.unlink(temp_pptx_path)
-    #         except FileNotFoundError:
-    #             pass
-    #         try:
-    #             shutil.rmtree(temp_pdf_dir)
-    #         except:
-    #             pass
-    
-    # def _create_fallback_pdf(self, pptx_path: str, pdf_path: str) -> str:
-    #     """
-    #     Create a basic PDF report when LibreOffice is not available
-    #     """
-    #     try:
-    #         from reportlab.lib.pagesizes import letter, A4
-    #         from reportlab.pdfgen import canvas
-    #         from reportlab.lib import colors
-    #         from reportlab.lib.styles import getSampleStyleSheet
-    #         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-    #         from pptx import Presentation
-            
-    #         # Load the presentation to extract text content
-    #         ppt = Presentation(pptx_path)
-            
-    #         # Create PDF
-    #         doc = SimpleDocTemplate(pdf_path, pagesize=A4)
-    #         styles = getSampleStyleSheet()
-    #         story = []
-            
-    #         # Add title
-    #         title = Paragraph("PowerPoint to PDF - Content Summary", styles['Title'])
-    #         story.append(title)
-    #         story.append(Spacer(1, 12))
-            
-    #         # Extract content from each slide
-    #         for slide_num, slide in enumerate(ppt.slides, 1):
-    #             slide_title = Paragraph(f"Slide {slide_num}", styles['Heading2'])
-    #             story.append(slide_title)
-    #             story.append(Spacer(1, 6))
-                
-    #             # Extract text from shapes
-    #             slide_text = []
-    #             for shape in slide.shapes:
-    #                 if hasattr(shape, 'text_frame') and shape.text_frame:
-    #                     text = shape.text_frame.text.strip()
-    #                     if text:
-    #                         slide_text.append(text)
-                
-    #             if slide_text:
-    #                 for text in slide_text:
-    #                     para = Paragraph(text, styles['Normal'])
-    #                     story.append(para)
-    #                     story.append(Spacer(1, 6))
-    #             else:
-    #                 para = Paragraph("(No text content found)", styles['Italic'])
-    #                 story.append(para)
-                
-    #             story.append(Spacer(1, 12))
-            
-    #         # Add note about conversion
-    #         note = Paragraph(
-    #             "<b>Note:</b> This PDF was generated as a fallback since LibreOffice is not installed. "
-    #             "For full PowerPoint to PDF conversion with images and formatting, please install LibreOffice.",
-    #             styles['Normal']
-    #         )
-    #         story.append(note)
-            
-    #         # Build PDF
-    #         doc.build(story)
-    #         logger.info(f"Fallback PDF created: {pdf_path}")
-            
-    #         return pdf_path
-            
-    #     except ImportError as e:
-    #         logger.error(f"Required libraries not available for fallback PDF: {e}")
-    #         raise Exception("PDF conversion failed: No converter available and fallback libraries missing")
-    #     except Exception as e:
-    #         logger.error(f"Fallback PDF creation failed: {e}")
-    #         raise Exception(f"PDF conversion failed: {e}")
+
+    def convert_to_pdf(self, pptx_key: str) -> str:
+        """
+        Convert PPTX to PDF using ConvertAPI
+
+        Args:
+            pptx_key (str): Storage key of the PPTX file to convert
+
+        Returns:
+            str: Storage key of the converted PDF file
+        """
+        import convertapi
+        import tempfile
+        import io
+        import time
+        import os
+        import pandas as pd
+
+        from .config import settings
+
+        logger.info(f"Starting ConvertAPI PPTX to PDF conversion for key: {pptx_key}")
+
+        try:
+            # Get ConvertAPI secret from settings
+            convertapi_secret = settings.convertapi_secret
+            if not convertapi_secret:
+                logger.error("ConvertAPI secret is not configured")
+                raise Exception("ConvertAPI secret not configured")
+
+            # Set ConvertAPI credentials
+            convertapi.api_secret = convertapi_secret
+            logger.info("ConvertAPI credentials configured")
+
+            # Download PPTX file from storage
+            logger.info("Downloading PPTX file from storage...")
+            pptx_content = storage.download_file(pptx_key)
+            logger.info(f"Downloaded PPTX file, size: {len(pptx_content)} bytes")
+
+            # Create temporary file for PPTX
+            with tempfile.NamedTemporaryFile(suffix='.pptx', delete=False) as temp_pptx:
+                temp_pptx.write(pptx_content)
+                temp_pptx_path = temp_pptx.name
+                logger.info(f"Temporary PPTX file created: {temp_pptx_path}")
+
+            # Convert using ConvertAPI
+            logger.info("Starting ConvertAPI conversion...")
+            start_time = time.time()
+
+            result = convertapi.convert('pdf', {
+                'File': temp_pptx_path,
+                'PdfResolution': '150'  # Good balance between quality and file size
+            })
+
+            conversion_time = time.time() - start_time
+            logger.info(f"ConvertAPI conversion completed in {conversion_time:.2f} seconds")
+            logger.info(f"Conversion cost: {result.conversion_cost} credits")
+
+            # Get PDF content from ConvertAPI result
+            pdf_content = result.file.io.getvalue()
+            logger.info(f"PDF generated, size: {len(pdf_content)} bytes")
+
+            # Verify PDF header
+            if not pdf_content.startswith(b'%PDF'):
+                logger.warning("Generated file may not be a valid PDF")
+                raise Exception("ConvertAPI returned invalid PDF content")
+
+            # Create filename for PDF
+            if self.txt_filename:
+                base_name = os.path.splitext(self.txt_filename)[0]
+                output_filename = f"{base_name}.pdf"
+                logger.info(f"Using TXT-based filename for PDF: {output_filename}")
+            else:
+                output_filename = f"output_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                logger.info(f"Using timestamp-based filename for PDF: {output_filename}")
+
+            # Upload PDF to storage
+            logger.info("Uploading PDF to storage...")
+            pdf_io = io.BytesIO(pdf_content)
+            pdf_key = storage.upload_file(pdf_io, output_filename, "processed_presentations")
+
+            logger.info(f"PDF conversion completed successfully. Storage key: {pdf_key}")
+            return pdf_key
+
+        except Exception as e:
+            logger.error(f"ConvertAPI PDF conversion failed: {str(e)}")
+            raise Exception(f"PDF conversion failed: {str(e)}")
+
+        finally:
+            # Cleanup temporary file
+            try:
+                if 'temp_pptx_path' in locals() and os.path.exists(temp_pptx_path):
+                    os.unlink(temp_pptx_path)
+                    logger.info("Temporary PPTX file cleaned up")
+            except Exception as cleanup_error:
+                logger.warning(f"Failed to cleanup temporary file: {cleanup_error}")

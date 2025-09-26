@@ -20,3 +20,4 @@ redis==5.0.1
 flower==2.0.1
 reportlab==4.0.7
 Pillow==10.1.0
+convertapi==1.8.0

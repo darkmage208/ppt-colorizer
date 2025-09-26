@@ -387,13 +387,13 @@ const Dashboard = () => {
                         <FileText className="h-4 w-4 mr-2" />
                         Download PPTX
                       </button>
-                      {/*<button
+                      <button
                         onClick={() => downloadFile(job.id, 'pdf')}
                         className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white text-sm font-medium rounded-xl shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
                       >
                         <FileText className="h-4 w-4 mr-2" />
                         Download PDF
-                      </button>*/}
+                      </button>
                     </div>
                   )}
 
