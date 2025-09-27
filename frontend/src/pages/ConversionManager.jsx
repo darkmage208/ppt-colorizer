@@ -24,6 +24,7 @@ const ConversionManager = () => {
   const [individualFiles, setIndividualFiles] = useState([])
   const [conversionGroups, setConversionGroups] = useState([])
   const [selectedConversionFile, setSelectedConversionFile] = useState(null)
+  const [selectedGroup, setSelectedGroup] = useState(null)
   const [loading, setLoading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState({})
 
@@ -83,6 +84,18 @@ const ConversionManager = () => {
       fetchIndividualFiles(selectedConversionFile.id)
     }
   }, [selectedConversionFile])
+
+  // Auto-select first group when groups change and no group is selected
+  useEffect(() => {
+    if (conversionGroups.length > 0 && !selectedGroup) {
+      setSelectedGroup(conversionGroups[0])
+    } else if (conversionGroups.length === 0) {
+      setSelectedGroup(null)
+    } else if (selectedGroup && !conversionGroups.find(g => g.id === selectedGroup.id)) {
+      // If selected group no longer exists, select first available
+      setSelectedGroup(conversionGroups[0])
+    }
+  }, [conversionGroups, selectedGroup])
 
   // Upload conversion file
   const handleUploadConversionFile = async (event) => {
@@ -478,137 +491,230 @@ const ConversionManager = () => {
             </div>
           </div>
 
-          {/* Conversion Groups */}
+          {/* Main Results Layout */}
           {conversionGroups.length > 0 ? (
-            <div className="space-y-6">
-              {conversionGroups.map((group) => (
-                <div key={group.id} className="bg-white dark:bg-dark-card rounded-2xl shadow-lg border border-gray-200/50 dark:border-dark-border overflow-hidden">
-                  {/* Group Header */}
-                  <div className="p-6 border-b border-gray-200/50 dark:border-dark-border">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        {getStatusIcon(group.status)}
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-800 dark:text-dark-text">{group.name}</h3>
-                          <p className="text-gray-600 dark:text-dark-muted">
-                            Source: {group.individual_file?.name} • Created {new Date(group.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(group.status)}`}>
-                          {group.status}
-                        </span>
-                        <button
-                          onClick={() => handleDeleteGroup(group.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                          title="Delete Group"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Progress Bar for Processing */}
-                    {group.status === 'processing' && (
-                      <div className="mt-4">
-                        <div className="flex items-center justify-between text-sm text-gray-600 dark:text-dark-muted mb-2">
-                          <span>Processing outputs...</span>
-                          <span>{group.progress}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 dark:bg-dark-hover rounded-full h-2">
-                          <div
-                            className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${group.progress}%` }}
-                          ></div>
-                        </div>
-                        <div className="text-sm text-gray-600 dark:text-dark-muted mt-1">
-                          {group.processed_outputs} / {group.total_outputs} outputs completed
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Error Message */}
-                    {group.error_message && (
-                      <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
-                          <p className="text-red-600 dark:text-red-400 text-sm">{group.error_message}</p>
-                        </div>
-                      </div>
-                    )}
+            <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg border border-gray-200/50 dark:border-dark-border overflow-hidden">
+              <div className="flex h-[600px]">
+                {/* Left Sidebar - Groups List */}
+                <div className="w-80 border-r border-gray-200/50 dark:border-dark-border flex flex-col">
+                  <div className="p-4 border-b border-gray-200/50 dark:border-dark-border">
+                    <h3 className="text-md font-semibold text-gray-800 dark:text-dark-text">Conversion Groups</h3>
+                    <p className="text-sm text-gray-600 dark:text-dark-muted">{conversionGroups.length} groups available</p>
                   </div>
-
-                  {/* Result Files */}
-                  {group.results && group.results.length > 0 ? (
-                    <div className="p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-md font-semibold text-gray-800 dark:text-dark-text">
-                          Output Files ({group.results.length})
-                        </h4>
-                        <span className="text-sm text-gray-600 dark:text-dark-muted">
-                          Total: {group.results.reduce((sum, result) => sum + result.total_records, 0)} records
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {group.results.map((result) => (
-                          <div key={result.id} className="bg-gray-50 dark:bg-dark-hover rounded-lg p-4 border border-gray-200 dark:border-dark-border">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center space-x-2 mb-2">
-                                  <FileText className="h-4 w-4 text-emerald-500 flex-shrink-0" />
-                                  <h5 className="text-sm font-medium text-gray-800 dark:text-dark-text truncate">
-                                    {result.output_name}
-                                  </h5>
-                                </div>
-                                <div className="space-y-1">
-                                  <p className="text-xs text-gray-600 dark:text-dark-muted">
-                                    {result.total_records.toLocaleString()} records
-                                  </p>
-                                  <p className="text-xs text-gray-600 dark:text-dark-muted">
-                                    {(result.file_size / 1024).toFixed(1)} KB
-                                  </p>
-                                  <p className="text-xs text-gray-500 dark:text-dark-muted">
-                                    {result.filename}
-                                  </p>
-                                </div>
+                  <div className="flex-1 overflow-y-auto">
+                    <div className="space-y-1 p-2">
+                      {conversionGroups.map((group) => (
+                        <div
+                          key={group.id}
+                          className={`p-4 rounded-lg cursor-pointer transition-all duration-200 ${
+                            selectedGroup?.id === group.id
+                              ? 'bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800'
+                              : 'hover:bg-gray-50 dark:hover:bg-dark-hover border border-transparent'
+                          }`}
+                          onClick={() => setSelectedGroup(group)}
+                        >
+                          <div className="flex items-start space-x-3">
+                            {getStatusIcon(group.status)}
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-sm font-medium text-gray-800 dark:text-dark-text truncate">
+                                {group.name}
+                              </h4>
+                              <p className="text-xs text-gray-600 dark:text-dark-muted truncate">
+                                {group.individual_file?.name}
+                              </p>
+                              <div className="flex items-center justify-between mt-2">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(group.status)}`}>
+                                  {group.status}
+                                </span>
+                                {group.results && (
+                                  <span className="text-xs text-gray-500 dark:text-dark-muted">
+                                    {group.results.length} files
+                                  </span>
+                                )}
                               </div>
-                            </div>
 
-                            <div className="flex items-center space-x-2 mt-3">
-                              <button
-                                onClick={() => handleDownloadResult(group.id, result.id, result.filename)}
-                                className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-900/40 transition-colors text-sm font-medium"
-                              >
-                                <Download className="h-3 w-3" />
-                                <span>Download</span>
-                              </button>
-                              <button
-                                onClick={() => handleDeleteResult(result.id)}
-                                className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                title="Delete File"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </button>
+                              {/* Progress Bar for Processing Groups */}
+                              {group.status === 'processing' && (
+                                <div className="mt-2">
+                                  <div className="flex items-center justify-between text-xs text-gray-600 dark:text-dark-muted mb-1">
+                                    <span>Processing...</span>
+                                    <span>{group.progress}%</span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 dark:bg-dark-hover rounded-full h-1">
+                                    <div
+                                      className="bg-gradient-to-r from-blue-500 to-indigo-600 h-1 rounded-full transition-all duration-300"
+                                      style={{ width: `${group.progress}%` }}
+                                    ></div>
+                                  </div>
+                                  <div className="text-xs text-gray-500 dark:text-dark-muted mt-1">
+                                    {group.processed_outputs} / {group.total_outputs}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
-                        ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Panel - Selected Group Details */}
+                <div className="flex-1 flex flex-col">
+                  {selectedGroup ? (
+                    <>
+                      {/* Group Header */}
+                      <div className="p-6 border-b border-gray-200/50 dark:border-dark-border">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            {getStatusIcon(selectedGroup.status)}
+                            <div>
+                              <h3 className="text-lg font-semibold text-gray-800 dark:text-dark-text">{selectedGroup.name}</h3>
+                              <p className="text-gray-600 dark:text-dark-muted">
+                                Source: {selectedGroup.individual_file?.name} • Created {new Date(selectedGroup.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedGroup.status)}`}>
+                              {selectedGroup.status}
+                            </span>
+                            <button
+                              onClick={() => handleDeleteGroup(selectedGroup.id)}
+                              className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                              title="Delete Group"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Progress Bar for Processing */}
+                        {selectedGroup.status === 'processing' && (
+                          <div className="mt-4">
+                            <div className="flex items-center justify-between text-sm text-gray-600 dark:text-dark-muted mb-2">
+                              <span>Processing outputs...</span>
+                              <span>{selectedGroup.progress}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 dark:bg-dark-hover rounded-full h-2">
+                              <div
+                                className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${selectedGroup.progress}%` }}
+                              ></div>
+                            </div>
+                            <div className="text-sm text-gray-600 dark:text-dark-muted mt-1">
+                              {selectedGroup.processed_outputs} / {selectedGroup.total_outputs} outputs completed
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Error Message */}
+                        {selectedGroup.error_message && (
+                          <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                            <div className="flex items-center space-x-2">
+                              <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                              <p className="text-red-600 dark:text-red-400 text-sm">{selectedGroup.error_message}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Result Files */}
+                      <div className="flex-1 overflow-y-auto p-6">
+                        {selectedGroup.results && selectedGroup.results.length > 0 ? (
+                          <>
+                            <div className="flex items-center justify-between mb-4">
+                              <h4 className="text-md font-semibold text-gray-800 dark:text-dark-text">
+                                Output Files ({selectedGroup.results.length})
+                              </h4>
+                              <span className="text-sm text-gray-600 dark:text-dark-muted">
+                                Total: {selectedGroup.results.reduce((sum, result) => sum + result.total_records, 0).toLocaleString()} records
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {selectedGroup.results.map((result) => (
+                                <div key={result.id} className="bg-gray-50 dark:bg-dark-hover rounded-lg p-4 border border-gray-200 dark:border-dark-border">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center space-x-2 mb-2">
+                                        <FileText className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+                                        <h5 className="text-sm font-medium text-gray-800 dark:text-dark-text truncate">
+                                          {result.output_name}
+                                        </h5>
+                                      </div>
+                                      <div className="space-y-1">
+                                        <p className="text-xs text-gray-600 dark:text-dark-muted">
+                                          {result.total_records.toLocaleString()} records
+                                        </p>
+                                        <p className="text-xs text-gray-600 dark:text-dark-muted">
+                                          {(result.file_size / 1024).toFixed(1)} KB
+                                        </p>
+                                        <p className="text-xs text-gray-500 dark:text-dark-muted truncate">
+                                          {result.filename}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center space-x-2 mt-3">
+                                    <button
+                                      onClick={() => handleDownloadResult(selectedGroup.id, result.id, result.filename)}
+                                      className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-900/40 transition-colors text-sm font-medium"
+                                    >
+                                      <Download className="h-3 w-3" />
+                                      <span>Download</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteResult(result.id)}
+                                      className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                      title="Delete File"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        ) : selectedGroup.status === 'completed' ? (
+                          <div className="text-center py-12 text-gray-500 dark:text-dark-muted">
+                            <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                            <h4 className="text-lg font-medium mb-2">No Output Files</h4>
+                            <p className="text-sm">This conversion completed but generated no output files</p>
+                          </div>
+                        ) : selectedGroup.status === 'pending' ? (
+                          <div className="text-center py-12 text-gray-500 dark:text-dark-muted">
+                            <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                            <h4 className="text-lg font-medium mb-2">Processing Pending</h4>
+                            <p className="text-sm">This conversion is waiting to start processing...</p>
+                          </div>
+                        ) : selectedGroup.status === 'processing' ? (
+                          <div className="text-center py-12 text-gray-500 dark:text-dark-muted">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-3"></div>
+                            <h4 className="text-lg font-medium mb-2">Processing...</h4>
+                            <p className="text-sm">Files will appear here as they are generated</p>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12 text-gray-500 dark:text-dark-muted">
+                            <AlertCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                            <h4 className="text-lg font-medium mb-2">Conversion Failed</h4>
+                            <p className="text-sm">Check the error message above for details</p>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-dark-muted">
+                      <div className="text-center">
+                        <Target className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                        <h4 className="text-lg font-medium mb-2">Select a Group</h4>
+                        <p className="text-sm">Choose a conversion group from the list to view its results</p>
                       </div>
                     </div>
-                  ) : group.status === 'completed' ? (
-                    <div className="p-6 text-center text-gray-500 dark:text-dark-muted">
-                      <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No output files generated</p>
-                    </div>
-                  ) : group.status === 'pending' ? (
-                    <div className="p-6 text-center text-gray-500 dark:text-dark-muted">
-                      <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Waiting to start processing...</p>
-                    </div>
-                  ) : null}
+                  )}
                 </div>
-              ))}
+              </div>
             </div>
           ) : (
             <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg p-12 border border-gray-200/50 dark:border-dark-border text-center">
