@@ -45,6 +45,35 @@ def detect_separator(content: str) -> str:
 
 router = APIRouter(prefix="/conversions", tags=["conversions"])
 
+@router.get("/debug/storage-status")
+def check_storage_status(
+    current_user: models.User = Depends(auth.require_superadmin)
+):
+    """Debug endpoint to check storage directory status"""
+    import stat
+
+    directories = [
+        CONVERSION_UPLOAD_DIR,
+        INDIVIDUAL_UPLOAD_DIR,
+        CONVERSION_OUTPUT_DIR
+    ]
+
+    status = {}
+    for directory in directories:
+        try:
+            exists = os.path.exists(directory)
+            status[directory] = {
+                "exists": exists,
+                "writable": os.access(directory, os.W_OK) if exists else False,
+                "readable": os.access(directory, os.R_OK) if exists else False,
+                "permissions": oct(stat.S_IMODE(os.lstat(directory).st_mode)) if exists else None,
+                "absolute_path": os.path.abspath(directory)
+            }
+        except Exception as e:
+            status[directory] = {"error": str(e)}
+
+    return {"storage_status": status, "current_working_directory": os.getcwd()}
+
 @router.post("/conversion-files/", response_model=schemas.ConversionFile)
 async def upload_conversion_file(
     name: str = Form(...),
@@ -77,10 +106,16 @@ async def upload_conversion_file(
         unique_filename = f"{uuid.uuid4()}_{conversion_file.filename}"
         file_path = os.path.join(uploads_dir, unique_filename)
 
-        with open(file_path, 'wb') as f:
-            f.write(file_content)
-
-        file_key = file_path
+        try:
+            with open(file_path, 'wb') as f:
+                f.write(file_content)
+            file_key = file_path
+        except PermissionError:
+            logger.error(f"Permission denied writing to {file_path}")
+            raise HTTPException(status_code=500, detail="Storage permission error")
+        except OSError as e:
+            logger.error(f"OS error writing to {file_path}: {e}")
+            raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
 
         # Save to database
         db_conversion_file = models.ConversionFile(
@@ -250,10 +285,16 @@ async def upload_independent_individual_file(
         unique_filename = f"{uuid.uuid4()}_{individual_file.filename}"
         file_path = os.path.join(uploads_dir, unique_filename)
 
-        with open(file_path, 'wb') as f:
-            f.write(file_data.getvalue())
-
-        file_key = file_path
+        try:
+            with open(file_path, 'wb') as f:
+                f.write(file_data.getvalue())
+            file_key = file_path
+        except PermissionError:
+            logger.error(f"Permission denied writing to {file_path}")
+            raise HTTPException(status_code=500, detail="Storage permission error")
+        except OSError as e:
+            logger.error(f"OS error writing to {file_path}: {e}")
+            raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
 
         # Update database record
         db_individual_file.file_path = file_key
@@ -426,10 +467,16 @@ async def upload_individual_file(
         unique_filename = f"{uuid.uuid4()}_{individual_file.filename}"
         file_path = os.path.join(uploads_dir, unique_filename)
 
-        with open(file_path, 'wb') as f:
-            f.write(file_data.getvalue())
-
-        file_key = file_path
+        try:
+            with open(file_path, 'wb') as f:
+                f.write(file_data.getvalue())
+            file_key = file_path
+        except PermissionError:
+            logger.error(f"Permission denied writing to {file_path}")
+            raise HTTPException(status_code=500, detail="Storage permission error")
+        except OSError as e:
+            logger.error(f"OS error writing to {file_path}: {e}")
+            raise HTTPException(status_code=500, detail=f"Storage error: {str(e)}")
 
         # Update database record
         db_individual_file.file_path = file_key

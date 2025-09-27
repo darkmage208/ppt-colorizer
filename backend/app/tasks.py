@@ -326,10 +326,16 @@ def process_conversion_task(group_id: int, conversion_file_id: int = None):
                     unique_filename = f"{uuid.uuid4()}_{filename}"
                     file_path = os.path.join(outputs_dir, unique_filename)
 
-                    with open(file_path, 'w', encoding='utf-8') as f:
-                        f.write(output_content)
-
-                    file_key = file_path
+                    try:
+                        with open(file_path, 'w', encoding='utf-8') as f:
+                            f.write(output_content)
+                        file_key = file_path
+                    except PermissionError:
+                        logger.error(f"Permission denied writing to {file_path}")
+                        raise Exception("Storage permission error")
+                    except OSError as e:
+                        logger.error(f"OS error writing to {file_path}: {e}")
+                        raise Exception(f"Storage error: {str(e)}")
 
                     # Save result to database
                     conversion_result = ConversionResult(
