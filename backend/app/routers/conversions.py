@@ -9,9 +9,16 @@ import io
 import logging
 import os
 import uuid
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Create upload and output directories if they don't exist
+CONVERSION_UPLOAD_DIR = "uploads/conversion_files"
+INDIVIDUAL_UPLOAD_DIR = "uploads/individual_files"
+CONVERSION_OUTPUT_DIR = "outputs/conversion_results"
+os.makedirs(CONVERSION_UPLOAD_DIR, exist_ok=True)
+os.makedirs(INDIVIDUAL_UPLOAD_DIR, exist_ok=True)
+os.makedirs(CONVERSION_OUTPUT_DIR, exist_ok=True)
 
 def detect_separator(content: str) -> str:
     """Auto-detect separator (tab vs space) in file content"""
@@ -64,17 +71,16 @@ async def upload_conversion_file(
             raise HTTPException(status_code=400, detail="File must contain 'Name' and 'RsID' columns")
 
         # Save file to local storage
-        uploads_path = Path("uploads/conversion_files")
-        uploads_path.mkdir(exist_ok=True, parents=True)
+        uploads_dir = CONVERSION_UPLOAD_DIR
 
         # Generate unique filename to avoid conflicts
         unique_filename = f"{uuid.uuid4()}_{conversion_file.filename}"
-        file_path = uploads_path / unique_filename
+        file_path = os.path.join(uploads_dir, unique_filename)
 
         with open(file_path, 'wb') as f:
             f.write(file_content)
 
-        file_key = str(file_path.absolute())
+        file_key = file_path
 
         # Save to database
         db_conversion_file = models.ConversionFile(
@@ -127,9 +133,8 @@ def delete_conversion_file(
         # Delete file from storage
         if conversion_file.file_path:
             try:
-                file_path = Path(conversion_file.file_path)
-                if file_path.exists():
-                    file_path.unlink()
+                if os.path.exists(conversion_file.file_path):
+                    os.remove(conversion_file.file_path)
             except Exception as e:
                 logger.warning(f"Could not delete file {conversion_file.file_path}: {e}")
 
@@ -239,17 +244,16 @@ async def upload_independent_individual_file(
                 raise HTTPException(status_code=400, detail=f"File must contain '{col}' column")
 
         # Save file to local storage
-        uploads_path = Path("uploads/individual_files")
-        uploads_path.mkdir(exist_ok=True, parents=True)
+        uploads_dir = INDIVIDUAL_UPLOAD_DIR
 
         # Generate unique filename to avoid conflicts
         unique_filename = f"{uuid.uuid4()}_{individual_file.filename}"
-        file_path = uploads_path / unique_filename
+        file_path = os.path.join(uploads_dir, unique_filename)
 
         with open(file_path, 'wb') as f:
             f.write(file_data.getvalue())
 
-        file_key = str(file_path.absolute())
+        file_key = file_path
 
         # Update database record
         db_individual_file.file_path = file_key
@@ -299,9 +303,8 @@ def delete_individual_file(
         # Delete file from storage
         if individual_file.file_path:
             try:
-                file_path = Path(individual_file.file_path)
-                if file_path.exists():
-                    file_path.unlink()
+                if os.path.exists(individual_file.file_path):
+                    os.remove(individual_file.file_path)
             except Exception as e:
                 logger.warning(f"Could not delete file {individual_file.file_path}: {e}")
 
@@ -417,17 +420,16 @@ async def upload_individual_file(
                 raise HTTPException(status_code=400, detail=f"File must contain '{col}' column")
 
         # Save file to local storage
-        uploads_path = Path("uploads/individual_files")
-        uploads_path.mkdir(exist_ok=True, parents=True)
+        uploads_dir = INDIVIDUAL_UPLOAD_DIR
 
         # Generate unique filename to avoid conflicts
         unique_filename = f"{uuid.uuid4()}_{individual_file.filename}"
-        file_path = uploads_path / unique_filename
+        file_path = os.path.join(uploads_dir, unique_filename)
 
         with open(file_path, 'wb') as f:
             f.write(file_data.getvalue())
 
-        file_key = str(file_path.absolute())
+        file_key = file_path
 
         # Update database record
         db_individual_file.file_path = file_key
@@ -623,12 +625,11 @@ def download_result_file(
         raise HTTPException(status_code=404, detail="Result file not found")
 
     try:
-        file_path = Path(result.file_path)
-        if not file_path.exists():
+        if not os.path.exists(result.file_path):
             raise HTTPException(status_code=404, detail="File not found")
 
         def iterfile():
-            with open(file_path, 'rb') as f:
+            with open(result.file_path, 'rb') as f:
                 yield from f
 
         return StreamingResponse(
@@ -658,9 +659,8 @@ def delete_conversion_group(
         # Delete result files from storage
         for result in group.results:
             try:
-                file_path = Path(result.file_path)
-                if file_path.exists():
-                    file_path.unlink()
+                if os.path.exists(result.file_path):
+                    os.remove(result.file_path)
             except Exception as e:
                 logger.warning(f"Could not delete file {result.file_path}: {e}")
 
@@ -691,9 +691,8 @@ def delete_result_file(
     try:
         # Delete file from storage
         try:
-            file_path = Path(result.file_path)
-            if file_path.exists():
-                file_path.unlink()
+            if os.path.exists(result.file_path):
+                os.remove(result.file_path)
         except Exception as e:
             logger.warning(f"Could not delete file {result.file_path}: {e}")
 

@@ -8,7 +8,7 @@ from .storage import storage
 import traceback
 import io
 import pandas as pd
-from pathlib import Path
+import os
 
 def detect_separator(content: str) -> str:
     """Auto-detect separator (tab vs space) in file content"""
@@ -206,11 +206,10 @@ def process_conversion_task(group_id: int, conversion_file_id: int = None):
 
         try:
             # Read conversion file (Name -> RsID mapping)
-            conversion_file_path = Path(conversion_file.file_path)
-            if not conversion_file_path.exists():
+            if not os.path.exists(conversion_file.file_path):
                 raise FileNotFoundError(f"Conversion file not found: {conversion_file.file_path}")
 
-            with open(conversion_file_path, 'rb') as f:
+            with open(conversion_file.file_path, 'rb') as f:
                 conversion_data = f.read()
             conversion_content = conversion_data.decode('utf-8')
             conversion_sep = detect_separator(conversion_content)
@@ -234,11 +233,10 @@ def process_conversion_task(group_id: int, conversion_file_id: int = None):
             logger.info(f"Created conversion lookup with {len(conversion_lookup)} entries")
 
             # Read individual file
-            individual_file_path = Path(individual_file.file_path)
-            if not individual_file_path.exists():
+            if not os.path.exists(individual_file.file_path):
                 raise FileNotFoundError(f"Individual file not found: {individual_file.file_path}")
 
-            with open(individual_file_path, 'rb') as f:
+            with open(individual_file.file_path, 'rb') as f:
                 individual_data = f.read()
             individual_content = individual_data.decode('utf-8')
             individual_sep = detect_separator(individual_content)
@@ -319,19 +317,19 @@ def process_conversion_task(group_id: int, conversion_file_id: int = None):
                     output_content = output_buffer.getvalue()
 
                     # Save the result file to local storage
-                    outputs_path = Path("outputs/conversion_results")
-                    outputs_path.mkdir(exist_ok=True, parents=True)
+                    outputs_dir = "outputs/conversion_results"
+                    os.makedirs(outputs_dir, exist_ok=True)
 
                     filename = f"{individual_file.name}_{output_col}_converted.txt"
                     # Generate unique filename to avoid conflicts
                     import uuid
                     unique_filename = f"{uuid.uuid4()}_{filename}"
-                    file_path = outputs_path / unique_filename
+                    file_path = os.path.join(outputs_dir, unique_filename)
 
                     with open(file_path, 'w', encoding='utf-8') as f:
                         f.write(output_content)
 
-                    file_key = str(file_path.absolute())
+                    file_key = file_path
 
                     # Save result to database
                     conversion_result = ConversionResult(
