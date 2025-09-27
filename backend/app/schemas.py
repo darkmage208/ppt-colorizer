@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
-from .models import UserRole, JobStatus, ConversionStatus
+from .models import UserRole, JobStatus, ConversionStatus, RsidProjectStatus
 
 class UserBase(BaseModel):
     username: str
@@ -158,6 +158,100 @@ class VcfConversion(VcfConversionBase):
 class VcfConversionWithDetails(VcfConversion):
     vcf_file: VcfFile
     user: User
+
+    class Config:
+        from_attributes = True
+
+# RsID Conversion Schemas
+class RsidConversionFileBase(BaseModel):
+    name: str
+
+class RsidConversionFileCreate(RsidConversionFileBase):
+    pass
+
+class RsidConversionFile(RsidConversionFileBase):
+    id: int
+    filename: str
+    file_path: str
+    file_size: int
+    is_active: bool
+    uploaded_by: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class RsidIndividualFileBase(BaseModel):
+    name: str
+
+class RsidIndividualFileCreate(RsidIndividualFileBase):
+    pass
+
+class RsidIndividualFile(RsidIndividualFileBase):
+    id: int
+    filename: str
+    file_path: str
+    file_size: int
+    project_id: int
+    is_active: bool
+    uploaded_by: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class RsidProjectBase(BaseModel):
+    name: str
+    conversion_file_id: int
+
+class RsidProjectCreate(RsidProjectBase):
+    pass
+
+class RsidProject(RsidProjectBase):
+    id: int
+    status: RsidProjectStatus
+    error_message: Optional[str] = None
+    progress: int
+    created_by: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class RsidOutputFileBase(BaseModel):
+    name: str
+
+class RsidOutputFile(RsidOutputFileBase):
+    id: int
+    filename: str
+    file_path: str
+    file_size: int
+    group_id: int
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class RsidOutputGroupBase(BaseModel):
+    name: str
+
+class RsidOutputGroup(RsidOutputGroupBase):
+    id: int
+    project_id: int
+    is_active: bool
+    created_at: datetime
+    output_files: List[RsidOutputFile] = []
+
+    class Config:
+        from_attributes = True
+
+class RsidProjectWithDetails(RsidProject):
+    conversion_file: RsidConversionFile
+    individual_files: List[RsidIndividualFile] = []
+    output_groups: List[RsidOutputGroup] = []
+    creator: User
 
     class Config:
         from_attributes = True
