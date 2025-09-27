@@ -1,0 +1,395 @@
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session
+from .. import schemas, models, auth
+from ..database import get_db
+from ..conversion_storage import conversion_storage
+from ..tasks import process_conversion_task
+import io
+import logging
+import os
+
+logger = logging.getLogger(__name__)
+
+def detect_separator(content: str) -> str:
+    """Auto-detect separator (tab vs space) in file content"""
+    first_line = content.split('\n')[0] if content else ""
+
+    # Count occurrences of tabs and spaces
+    tab_count = first_line.count('\t')
+    space_count = first_line.count(' ')
+
+    # If tabs exist and create multiple columns, prefer tabs
+    if tab_count > 0:
+        tab_split = first_line.split('\t')
+        if len(tab_split) >= 4:  # Should have at least SNP, Name, Chr, Position
+            return '\t'
+
+    # If spaces exist and create multiple columns, use spaces
+    if space_count > 0:
+        space_split = first_line.split(' ')
+        if len(space_split) >= 4:  # Should have at least SNP, Name, Chr, Position
+            return ' '
+
+    # Default to tab
+    return '\t'
+
+router = APIRouter(prefix="/conversions", tags=["conversions"])
+
+@router.post("/conversion-files/", response_model=schemas.ConversionFile)
+async def upload_conversion_file(
+    name: str = Form(...),
+    conversion_file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_superadmin)
+):
+    """Upload a conversion file (Name -> RsID mapping)"""
+    if not conversion_file.filename.endswith('.txt'):
+        raise HTTPException(status_code=400, detail="Only TXT files are allowed")
+
+    try:
+        # Read file content for validation
+        file_content = await conversion_file.read()
+
+        # Basic validation - check if file has Name and RsID columns
+        content_str = file_content.decode('utf-8')
+        lines = content_str.strip().split('\n')
+        if len(lines) < 2:
+            raise HTTPException(status_code=400, detail="File must contain header and data rows")
+
+        header = lines[0].strip().split('\t')
+        if len(header) < 2 or 'Name' not in header or 'RsID' not in header:
+            raise HTTPException(status_code=400, detail="File must contain 'Name' and 'RsID' columns")
+
+        # Reset file pointer and upload to storage
+        conversion_file.file.seek(0)
+        file_data = io.BytesIO(file_content)
+        file_key = conversion_storage.upload_file(file_data, conversion_file.filename, "conversion_files")
+
+        # Save to database
+        db_conversion_file = models.ConversionFile(
+            name=name,
+            filename=conversion_file.filename,
+            file_path=file_key,
+            file_size=len(file_content),
+            uploaded_by=current_user.id
+        )
+        db.add(db_conversion_file)
+        db.commit()
+        db.refresh(db_conversion_file)
+
+        return db_conversion_file
+
+    except Exception as e:
+        logger.error(f"Failed to upload conversion file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload conversion file: {str(e)}")
+
+@router.get("/conversion-files/", response_model=List[schemas.ConversionFileWithDetails])
+def get_conversion_files(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_superadmin)
+):
+    """Get all conversion files"""
+    conversion_files = db.query(models.ConversionFile)\
+        .filter(models.ConversionFile.is_active == True)\
+        .offset(skip)\
+        .limit(limit)\
+        .all()
+    return conversion_files
+
+@router.post("/individual-files/", response_model=schemas.IndividualFile)
+async def upload_individual_file(
+    conversion_file_id: int = Form(...),
+    name: str = Form(...),
+    individual_file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_superadmin)
+):
+    """Upload an individual data file with progress tracking"""
+    if not individual_file.filename.endswith('.txt'):
+        raise HTTPException(status_code=400, detail="Only TXT files are allowed")
+
+    # Check if conversion file exists
+    conversion_file = db.query(models.ConversionFile)\
+        .filter(models.ConversionFile.id == conversion_file_id)\
+        .first()
+    if not conversion_file:
+        raise HTTPException(status_code=404, detail="Conversion file not found")
+
+    db_individual_file = None
+    try:
+        # Create individual file record first
+        db_individual_file = models.IndividualFile(
+            conversion_file_id=conversion_file_id,
+            name=name,
+            filename=individual_file.filename,
+            file_path="",  # Will be updated after upload
+            file_size=0,   # Will be updated after upload
+            upload_progress=0,
+            is_uploaded=False,
+            uploaded_by=current_user.id
+        )
+        db.add(db_individual_file)
+        db.commit()
+        db.refresh(db_individual_file)
+
+        # Stream upload with progress tracking
+        file_data = io.BytesIO()
+        chunk_size = 1024 * 1024  # 1MB chunks
+        total_size = 0
+
+        while True:
+            chunk = await individual_file.read(chunk_size)
+            if not chunk:
+                break
+            file_data.write(chunk)
+            total_size += len(chunk)
+
+            # Update progress (simplified - in real implementation you'd need WebSocket or polling)
+            progress = min(100, int((total_size / (total_size + 1)) * 100))
+            db_individual_file.upload_progress = progress
+            db.commit()
+
+        file_data.seek(0)
+
+        # Basic validation - check for required columns
+        content_str = file_data.read().decode('utf-8')
+        file_data.seek(0)
+
+        lines = content_str.strip().split('\n')
+        if len(lines) < 2:
+            raise HTTPException(status_code=400, detail="File must contain header and data rows")
+
+        # Auto-detect separator (tabs vs spaces)
+        header_line = lines[0].strip()
+        tab_count = header_line.count('\t')
+        space_count = header_line.count(' ')
+        tab_split_len = len(header_line.split('\t'))
+        space_split_len = len(header_line.split(' '))
+
+        separator = detect_separator(content_str)
+        header = header_line.split(separator)
+
+        logger.info(f"Header analysis: tabs={tab_count} (splits to {tab_split_len}), spaces={space_count} (splits to {space_split_len})")
+        logger.info(f"Detected separator: '{separator}' (ord={ord(separator)})")
+        logger.info(f"Detected headers: {header}")
+        logger.info(f"Raw header line: '{header_line}'")
+
+        # Check for required columns, allowing "SNP Name" as a substitute for separate "SNP" and "Name"
+        required_cols = ['Chr', 'Position']
+        snp_name_found = False
+
+        # Check if we have either separate SNP+Name or combined "SNP Name"
+        if 'SNP Name' in header:
+            snp_name_found = True
+            logger.info(f"Found 'SNP Name' column, will split during processing")
+        elif 'SNP' in header and 'Name' in header:
+            snp_name_found = True
+            logger.info(f"Found separate 'SNP' and 'Name' columns")
+
+        if not snp_name_found:
+            logger.error(f"Missing SNP identification columns in headers: {header}")
+            raise HTTPException(status_code=400, detail="File must contain either 'SNP Name' column or separate 'SNP' and 'Name' columns")
+
+        # Check other required columns
+        for col in required_cols:
+            if col not in header:
+                logger.error(f"Missing column '{col}' in headers: {header}")
+                raise HTTPException(status_code=400, detail=f"File must contain '{col}' column")
+
+        # Upload to storage
+        file_key = conversion_storage.upload_file(file_data, individual_file.filename, "individual_files")
+
+        # Update database record
+        db_individual_file.file_path = file_key
+        db_individual_file.file_size = total_size
+        db_individual_file.upload_progress = 100
+        db_individual_file.is_uploaded = True
+        db.commit()
+
+        return db_individual_file
+
+    except HTTPException as he:
+        logger.error(f"HTTPException during upload: {he.detail}")
+        # Clean up failed record
+        if db_individual_file and hasattr(db_individual_file, 'id') and db_individual_file.id:
+            try:
+                db.delete(db_individual_file)
+                db.commit()
+            except Exception as cleanup_error:
+                logger.error(f"Error during cleanup: {str(cleanup_error)}")
+        raise he
+    except Exception as e:
+        logger.error(f"Failed to upload individual file: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        # Clean up failed record
+        if db_individual_file and hasattr(db_individual_file, 'id') and db_individual_file.id:
+            try:
+                db.delete(db_individual_file)
+                db.commit()
+            except Exception as cleanup_error:
+                logger.error(f"Error during cleanup: {str(cleanup_error)}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload individual file: {str(e)}")
+
+@router.get("/individual-files/{conversion_file_id}", response_model=List[schemas.IndividualFile])
+def get_individual_files(
+    conversion_file_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_superadmin)
+):
+    """Get all individual files for a conversion file"""
+    individual_files = db.query(models.IndividualFile)\
+        .filter(models.IndividualFile.conversion_file_id == conversion_file_id)\
+        .all()
+    return individual_files
+
+@router.post("/start-conversion/{conversion_file_id}")
+async def start_conversion(
+    conversion_file_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_superadmin)
+):
+    """Start the conversion process for all uploaded individual files"""
+    # Check if conversion file exists
+    conversion_file = db.query(models.ConversionFile)\
+        .filter(models.ConversionFile.id == conversion_file_id)\
+        .first()
+    if not conversion_file:
+        raise HTTPException(status_code=404, detail="Conversion file not found")
+
+    # Get all uploaded individual files
+    individual_files = db.query(models.IndividualFile)\
+        .filter(
+            models.IndividualFile.conversion_file_id == conversion_file_id,
+            models.IndividualFile.is_uploaded == True
+        )\
+        .all()
+
+    if not individual_files:
+        raise HTTPException(status_code=400, detail="No individual files uploaded yet")
+
+    try:
+        # Start processing for each individual file
+        for individual_file in individual_files:
+            # Create conversion group
+            conversion_group = models.ConversionGroup(
+                individual_file_id=individual_file.id,
+                name=f"Conversion_{individual_file.name}",
+                status=models.ConversionStatus.PENDING
+            )
+            db.add(conversion_group)
+            db.commit()
+            db.refresh(conversion_group)
+
+            # Queue processing task
+            process_conversion_task.delay(conversion_group.id)
+
+        return {"message": f"Started conversion for {len(individual_files)} individual files"}
+
+    except Exception as e:
+        logger.error(f"Failed to start conversion: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to start conversion: {str(e)}")
+
+@router.get("/groups/", response_model=List[schemas.ConversionGroupWithDetails])
+def get_conversion_groups(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_superadmin)
+):
+    """Get all conversion groups with results"""
+    groups = db.query(models.ConversionGroup)\
+        .offset(skip)\
+        .limit(limit)\
+        .all()
+    return groups
+
+@router.get("/groups/{group_id}/download/{result_id}")
+def download_result_file(
+    group_id: int,
+    result_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_superadmin)
+):
+    """Download a specific result file"""
+    result = db.query(models.ConversionResult)\
+        .filter(
+            models.ConversionResult.id == result_id,
+            models.ConversionResult.group_id == group_id
+        )\
+        .first()
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Result file not found")
+
+    try:
+        file_content = conversion_storage.download_file(result.file_path)
+        return StreamingResponse(
+            io.BytesIO(file_content),
+            media_type="text/plain",
+            headers={"Content-Disposition": f"attachment; filename={result.filename}"}
+        )
+    except Exception as e:
+        logger.error(f"Failed to download result file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to download file: {str(e)}")
+
+@router.delete("/groups/{group_id}")
+def delete_conversion_group(
+    group_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_superadmin)
+):
+    """Delete a conversion group and all its results"""
+    group = db.query(models.ConversionGroup)\
+        .filter(models.ConversionGroup.id == group_id)\
+        .first()
+
+    if not group:
+        raise HTTPException(status_code=404, detail="Conversion group not found")
+
+    try:
+        # Delete result files from storage
+        for result in group.results:
+            conversion_storage.delete_file(result.file_path)
+
+        # Delete from database (cascade will handle results)
+        db.delete(group)
+        db.commit()
+
+        return {"message": "Conversion group deleted successfully"}
+
+    except Exception as e:
+        logger.error(f"Failed to delete conversion group: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete conversion group: {str(e)}")
+
+@router.delete("/results/{result_id}")
+def delete_result_file(
+    result_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_superadmin)
+):
+    """Delete a specific result file"""
+    result = db.query(models.ConversionResult)\
+        .filter(models.ConversionResult.id == result_id)\
+        .first()
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Result file not found")
+
+    try:
+        # Delete file from storage
+        conversion_storage.delete_file(result.file_path)
+
+        # Delete from database
+        db.delete(result)
+        db.commit()
+
+        return {"message": "Result file deleted successfully"}
+
+    except Exception as e:
+        logger.error(f"Failed to delete result file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete result file: {str(e)}")

@@ -161,3 +161,88 @@ class VcfConversionWithDetails(VcfConversion):
 
     class Config:
         from_attributes = True
+
+# New schemas for Super Admin conversion feature
+class ConversionFileBase(BaseModel):
+    name: str
+
+class ConversionFileCreate(ConversionFileBase):
+    pass
+
+class ConversionFile(ConversionFileBase):
+    id: int
+    filename: str
+    file_path: str
+    file_size: int
+    is_active: bool
+    uploaded_by: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class IndividualFileBase(BaseModel):
+    name: str
+    conversion_file_id: int
+
+class IndividualFileCreate(IndividualFileBase):
+    pass
+
+class IndividualFile(IndividualFileBase):
+    id: int
+    filename: str
+    file_path: str
+    file_size: int
+    upload_progress: int
+    is_uploaded: bool
+    uploaded_by: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ConversionGroupBase(BaseModel):
+    name: str
+    individual_file_id: int
+
+class ConversionGroupCreate(ConversionGroupBase):
+    pass
+
+class ConversionGroup(ConversionGroupBase):
+    id: int
+    status: ConversionStatus
+    progress: int
+    total_outputs: int
+    processed_outputs: int
+    error_message: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class ConversionResult(BaseModel):
+    id: int
+    group_id: int
+    output_name: str
+    filename: str
+    file_path: str
+    file_size: int
+    total_records: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ConversionGroupWithDetails(ConversionGroup):
+    individual_file: IndividualFile
+    results: List[ConversionResult] = []
+
+    class Config:
+        from_attributes = True
+
+class ConversionFileWithDetails(ConversionFile):
+    individual_files: List[IndividualFile] = []
+
+    class Config:
+        from_attributes = True

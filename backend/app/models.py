@@ -110,6 +110,70 @@ class JobPermission(Base):
     job = relationship("Job", back_populates="permissions")
     user = relationship("User")
 
+class ConversionFile(Base):
+    __tablename__ = "conversion_files"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    filename = Column(String)
+    file_path = Column(String)
+    file_size = Column(Integer)
+    is_active = Column(Boolean, default=True)
+    uploaded_by = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    uploader = relationship("User")
+    individual_files = relationship("IndividualFile", back_populates="conversion_file")
+
+class IndividualFile(Base):
+    __tablename__ = "individual_files"
+
+    id = Column(Integer, primary_key=True, index=True)
+    conversion_file_id = Column(Integer, ForeignKey("conversion_files.id"))
+    name = Column(String, index=True)
+    filename = Column(String)
+    file_path = Column(String)
+    file_size = Column(Integer)
+    upload_progress = Column(Integer, default=0)
+    is_uploaded = Column(Boolean, default=False)
+    uploaded_by = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    conversion_file = relationship("ConversionFile", back_populates="individual_files")
+    uploader = relationship("User")
+    conversion_groups = relationship("ConversionGroup", back_populates="individual_file")
+
+class ConversionGroup(Base):
+    __tablename__ = "conversion_groups"
+
+    id = Column(Integer, primary_key=True, index=True)
+    individual_file_id = Column(Integer, ForeignKey("individual_files.id"))
+    name = Column(String, index=True)
+    status = Column(Enum(ConversionStatus), default=ConversionStatus.PENDING)
+    progress = Column(Integer, default=0)
+    total_outputs = Column(Integer, default=0)
+    processed_outputs = Column(Integer, default=0)
+    error_message = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    individual_file = relationship("IndividualFile", back_populates="conversion_groups")
+    results = relationship("ConversionResult", back_populates="group", cascade="all, delete-orphan")
+
+class ConversionResult(Base):
+    __tablename__ = "conversion_results"
+
+    id = Column(Integer, primary_key=True, index=True)
+    group_id = Column(Integer, ForeignKey("conversion_groups.id"))
+    output_name = Column(String)  # Name of the OUTPUT column
+    filename = Column(String)
+    file_path = Column(String)
+    file_size = Column(Integer)
+    total_records = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    group = relationship("ConversionGroup", back_populates="results")
+
 class Job(Base):
     __tablename__ = "jobs"
 
