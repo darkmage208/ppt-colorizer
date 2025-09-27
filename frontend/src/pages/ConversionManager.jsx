@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useAuth } from '../contexts/AuthContext'
 import { toast } from 'react-hot-toast'
 import {
   Upload,
@@ -13,7 +12,6 @@ import {
   AlertCircle,
   Plus,
   RotateCcw,
-  Database,
   Target
 } from 'lucide-react'
 import api from '../utils/api'
@@ -24,6 +22,7 @@ const ConversionManager = () => {
   const [individualFiles, setIndividualFiles] = useState([])
   const [conversionGroups, setConversionGroups] = useState([])
   const [selectedConversionFile, setSelectedConversionFile] = useState(null)
+  const [selectedIndividualFiles, setSelectedIndividualFiles] = useState(new Set())
   const [selectedGroup, setSelectedGroup] = useState(null)
   const [loading, setLoading] = useState(false)
   const [downloadingFiles, setDownloadingFiles] = useState(new Set())
@@ -50,15 +49,20 @@ const ConversionManager = () => {
     }
   }
 
-  // Fetch individual files
-  const fetchIndividualFiles = async (conversionFileId) => {
-    if (!conversionFileId) return
+  // Fetch all individual files (completely independent)
+  const fetchIndividualFiles = async () => {
     try {
-      const response = await api.get(`/conversions/individual-files/${conversionFileId}`)
+      const response = await api.get('/conversions/individual-files/')
       setIndividualFiles(response.data)
     } catch (error) {
       console.error('Error fetching individual files:', error)
-      toast.error('Failed to fetch individual files')
+
+      if (error.response?.status === 404 || error.response?.status === 405) {
+        setIndividualFiles([])
+        console.warn('Independent individual files endpoint not available. Backend needs to be updated.')
+      } else {
+        toast.error('Failed to fetch individual files')
+      }
     }
   }
 
@@ -75,6 +79,7 @@ const ConversionManager = () => {
 
   useEffect(() => {
     fetchConversionFiles()
+    fetchIndividualFiles()
     fetchConversionGroups()
   }, [])
 
@@ -89,11 +94,6 @@ const ConversionManager = () => {
     }
   }, [conversionGroups])
 
-  useEffect(() => {
-    if (selectedConversionFile) {
-      fetchIndividualFiles(selectedConversionFile.id)
-    }
-  }, [selectedConversionFile])
 
   // Auto-select first group when groups change and no group is selected
   useEffect(() => {
@@ -166,20 +166,19 @@ const ConversionManager = () => {
     }
   }
 
-  // Upload individual file(s)
+  // Upload individual file(s) - completely independent
   const handleUploadIndividualFile = async (event) => {
     const files = Array.from(event.target.files)
-    if (!files.length || !selectedConversionFile) return
+    if (!files.length) return
 
     setLoading(true)
 
     try {
-      // Upload each file
+      // Upload each file independently
       for (const file of files) {
         const name = file.name.replace('.txt', '').replace(/[^a-zA-Z0-9-_]/g, '_')
 
         const formData = new FormData()
-        formData.append('conversion_file_id', selectedConversionFile.id)
         formData.append('name', name)
         formData.append('individual_file', file)
 
@@ -191,7 +190,7 @@ const ConversionManager = () => {
       }
 
       toast.success(`${files.length} individual file(s) uploaded successfully!`)
-      fetchIndividualFiles(selectedConversionFile.id)
+      fetchIndividualFiles()
     } catch (error) {
       console.error('Error uploading individual files:', error)
       const errorMessage = error.response?.data?.detail || 'Failed to upload some individual files'
@@ -202,12 +201,122 @@ const ConversionManager = () => {
     }
   }
 
-  // Start conversion
-  const handleStartConversion = async (conversionFileId) => {
+  // Delete conversion file
+  const handleDeleteConversionFile = async (fileId) => {
+    const file = conversionFiles.find(f => f.id === fileId)
+    const proceed = await showConfirmDialog(
+      'Delete Conversion File',
+      <div className="space-y-3">
+        <p>Are you sure you want to delete this conversion file?</p>
+        {file && (
+          <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded border">
+            <p className="font-medium text-gray-900 dark:text-gray-100">{file.name}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 break-all">
+              {file.filename}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {(file.file_size / 1024).toFixed(1)} KB
+            </p>
+          </div>
+        )}
+        <p className="text-red-600 dark:text-red-400 text-sm">
+          ⚠️ This action cannot be undone.
+        </p>
+      </div>,
+      null,
+      {
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        type: 'danger'
+      }
+    )
+    if (!proceed) return
+
+    try {
+      await api.delete(`/conversions/conversion-files/${fileId}`)
+      toast.success('Conversion file deleted successfully!')
+
+      // If the deleted file was selected, deselect it
+      if (selectedConversionFile?.id === fileId) {
+        setSelectedConversionFile(null)
+      }
+
+      fetchConversionFiles()
+    } catch (error) {
+      console.error('Error deleting conversion file:', error)
+      toast.error('Failed to delete conversion file')
+    }
+  }
+
+  // Delete individual file
+  const handleDeleteIndividualFile = async (fileId) => {
+    const file = individualFiles.find(f => f.id === fileId)
+    const proceed = await showConfirmDialog(
+      'Delete Individual File',
+      <div className="space-y-3">
+        <p>Are you sure you want to delete this individual file?</p>
+        {file && (
+          <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded border">
+            <p className="font-medium text-gray-900 dark:text-gray-100">{file.name}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 break-all">
+              {file.filename}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {(file.file_size / 1024).toFixed(1)} KB
+            </p>
+          </div>
+        )}
+        <p className="text-red-600 dark:text-red-400 text-sm">
+          ⚠️ This action cannot be undone.
+        </p>
+      </div>,
+      null,
+      {
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        type: 'danger'
+      }
+    )
+    if (!proceed) return
+
+    try {
+      await api.delete(`/conversions/individual-files/${fileId}`)
+      toast.success('Individual file deleted successfully!')
+
+      // Remove from selected files if it was selected
+      setSelectedIndividualFiles(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(fileId)
+        return newSet
+      })
+
+      fetchIndividualFiles()
+    } catch (error) {
+      console.error('Error deleting individual file:', error)
+      toast.error('Failed to delete individual file')
+    }
+  }
+
+  // Start conversion with selected files (completely independent)
+  const handleStartConversion = async () => {
+    if (!selectedConversionFile || selectedIndividualFiles.size === 0) {
+      toast.error('Please select a conversion file and at least one individual file')
+      return
+    }
+
     setLoading(true)
     try {
-      await api.post(`/conversions/start-conversion/${conversionFileId}`, {})
-      toast.success('Conversion started successfully!')
+      const selectedFiles = Array.from(selectedIndividualFiles)
+
+      await api.post('/conversions/start-conversion/', {
+        conversion_file_id: selectedConversionFile.id,
+        individual_file_ids: selectedFiles
+      })
+
+      toast.success(`Conversion started for ${selectedFiles.length} file(s)!`)
+
+      // Clear selections after starting conversion
+      setSelectedIndividualFiles(new Set())
 
       // Force immediate refresh of conversion groups
       await fetchConversionGroups()
@@ -219,7 +328,8 @@ const ConversionManager = () => {
 
     } catch (error) {
       console.error('Error starting conversion:', error)
-      toast.error('Failed to start conversion')
+      const errorMessage = error.response?.data?.detail || error.response?.data?.message || 'Failed to start conversion'
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -528,7 +638,7 @@ const ConversionManager = () => {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-gray-800 dark:text-dark-text">Step 1: Select Conversion File</h2>
-                <p className="text-gray-600 dark:text-dark-muted">Choose or upload a conversion file containing Name → RsID mappings</p>
+                <p className="text-gray-600 dark:text-dark-muted">Upload and select one conversion file containing Name → RsID mappings (independent of individual files)</p>
               </div>
               <label className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-xl cursor-pointer hover:from-orange-600 hover:to-amber-700 transition-all duration-200">
                 <Plus className="h-4 w-4" />
@@ -548,14 +658,16 @@ const ConversionManager = () => {
               {conversionFiles.map((file) => (
                 <div
                   key={file.id}
-                  className={`p-4 border rounded-xl cursor-pointer transition-all duration-200 ${
+                  className={`p-4 border rounded-xl transition-all duration-200 relative group ${
                     selectedConversionFile?.id === file.id
                       ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
                       : 'border-gray-200 dark:border-dark-border hover:border-orange-300 dark:hover:border-orange-600'
                   }`}
-                  onClick={() => setSelectedConversionFile(file)}
                 >
-                  <div className="flex items-center space-x-3">
+                  <div
+                    className="flex items-center space-x-3 cursor-pointer"
+                    onClick={() => setSelectedConversionFile(file)}
+                  >
                     <FileText className={`h-5 w-5 ${selectedConversionFile?.id === file.id ? 'text-orange-600' : 'text-gray-400'}`} />
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-medium text-gray-900 dark:text-dark-text truncate">{file.name}</h3>
@@ -566,6 +678,16 @@ const ConversionManager = () => {
                       <CheckCircle className="h-5 w-5 text-orange-600" />
                     )}
                   </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeleteConversionFile(file.id)
+                    }}
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-all duration-200"
+                    title="Delete conversion file"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
               ))}
               {conversionFiles.length === 0 && (
@@ -576,113 +698,192 @@ const ConversionManager = () => {
             </div>
           </div>
 
-          {/* Step 2: Upload Individual Files */}
-          {selectedConversionFile && (
-            <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg p-6 border border-gray-200/50 dark:border-dark-border">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-800 dark:text-dark-text">Step 2: Upload Individual Files</h2>
-                  <p className="text-gray-600 dark:text-dark-muted">Upload multiple individual data files for processing</p>
-                </div>
-                <label className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl cursor-pointer hover:from-blue-600 hover:to-indigo-700 transition-all duration-200">
-                  <Upload className="h-4 w-4" />
-                  <span>Add Files</span>
-                  <input
-                    type="file"
-                    accept=".txt"
-                    onChange={handleUploadIndividualFile}
-                    className="hidden"
-                    disabled={loading}
-                    multiple
-                  />
-                </label>
+          {/* Step 2: Upload and Select Individual Files */}
+          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg p-6 border border-gray-200/50 dark:border-dark-border">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-dark-text">Step 2: Upload and Select Individual Files</h2>
+                <p className="text-gray-600 dark:text-dark-muted">Upload individual data files independently and select multiple files for processing</p>
               </div>
-
-              {/* Individual Files Grid */}
-              <div className="space-y-3">
-                {individualFiles.map((file) => (
-                  <div key={file.id} className="flex items-center space-x-4 p-3 bg-gray-50 dark:bg-dark-hover rounded-lg">
-                    <Users className="h-5 w-5 text-blue-500 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-medium text-gray-900 dark:text-dark-text truncate">{file.name}</h3>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          file.is_uploaded ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-                        }`}>
-                          {file.is_uploaded ? 'Ready' : 'Uploading'}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 dark:text-dark-muted">{file.filename} • {(file.file_size / 1024).toFixed(1)} KB</p>
-                      {!file.is_uploaded && (
-                        <div className="mt-2">
-                          <div className="w-full bg-gray-200 dark:bg-dark-border rounded-full h-2">
-                            <div
-                              className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${file.upload_progress}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-xs text-gray-600 dark:text-dark-muted">{file.upload_progress}%</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {individualFiles.length === 0 && (
-                  <div className="text-center py-8 text-gray-500 dark:text-dark-muted">
-                    No individual files uploaded yet
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Start Conversion */}
-          {selectedConversionFile && individualFiles.filter(f => f.is_uploaded).length > 0 && (
-            <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg p-6 border border-gray-200/50 dark:border-dark-border">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-800 dark:text-dark-text">Step 3: Start Conversion</h2>
-                  <p className="text-gray-600 dark:text-dark-muted">
-                    Ready to process {individualFiles.filter(f => f.is_uploaded).length} files with {selectedConversionFile.name}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleStartConversion(selectedConversionFile.id)}
+              <label className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-200 ${
+                loading
+                  ? 'bg-gray-400 cursor-not-allowed text-white'
+                  : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white cursor-pointer hover:from-blue-600 hover:to-indigo-700'
+              }`}>
+                <Upload className="h-4 w-4" />
+                <span>{loading ? 'Uploading...' : 'Upload Individual Files'}</span>
+                <input
+                  type="file"
+                  accept=".txt"
+                  onChange={handleUploadIndividualFile}
+                  className="hidden"
                   disabled={loading}
-                  className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:from-green-600 hover:to-emerald-700 transition-all duration-200 font-medium"
-                >
-                  <Play className="h-5 w-5" />
-                  <span>Start Conversion</span>
-                </button>
-              </div>
+                  multiple
+                />
+              </label>
+            </div>
 
-              {/* Active Conversions Progress */}
-              {getSortedGroups().filter(g => g.status === 'processing' || g.status === 'pending').length > 0 && (
-                <div className="mt-6 space-y-4">
-                  <h3 className="text-md font-semibold text-gray-800 dark:text-dark-text">Active Conversions</h3>
-                  {getSortedGroups().filter(g => g.status === 'processing' || g.status === 'pending').map((group, index) => (
-                    <div key={group.id} className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-sm font-medium text-gray-900 dark:text-dark-text">
-                          #{getSortedGroups().findIndex(g => g.id === group.id) + 1} {group.name}
-                        </h4>
-                        <span className="text-sm text-blue-600 dark:text-blue-400">{group.progress}%</span>
-                      </div>
-                      <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2 mb-2">
-                        <div
-                          className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${group.progress}%` }}
-                        ></div>
-                      </div>
-                      <p className="text-xs text-gray-600 dark:text-dark-muted">
-                        Processing {group.processed_outputs} / {group.total_outputs} outputs
-                      </p>
+            {individualFiles.filter(f => f.is_uploaded).length > 0 && (
+              <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <strong>{selectedIndividualFiles.size}</strong> of <strong>{individualFiles.filter(f => f.is_uploaded).length}</strong> file(s) selected for conversion
+                  </p>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => {
+                        const uploadedFiles = individualFiles.filter(f => f.is_uploaded).map(f => f.id)
+                        setSelectedIndividualFiles(new Set(uploadedFiles))
+                      }}
+                      className="text-xs px-2 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-900/40 transition-colors"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      onClick={() => setSelectedIndividualFiles(new Set())}
+                      className="text-xs px-2 py-1 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Individual Files Grid */}
+            <div className="space-y-3">
+              {individualFiles.map((file) => (
+                <div
+                  key={file.id}
+                  className={`flex items-center space-x-4 p-3 rounded-lg transition-all duration-200 cursor-pointer relative group ${
+                    selectedIndividualFiles.has(file.id)
+                      ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+                      : 'bg-gray-50 dark:bg-dark-hover hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                  onClick={() => {
+                    if (file.is_uploaded) {
+                      setSelectedIndividualFiles(prev => {
+                        const newSet = new Set(prev)
+                        if (newSet.has(file.id)) {
+                          newSet.delete(file.id)
+                        } else {
+                          newSet.add(file.id)
+                        }
+                        return newSet
+                      })
+                    }
+                  }}
+                >
+                  <div className="flex items-center">
+                    {selectedIndividualFiles.has(file.id) ? (
+                      <CheckCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                    ) : (
+                      <Users className="h-5 w-5 text-blue-500 flex-shrink-0" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium text-gray-900 dark:text-dark-text truncate">{file.name}</h3>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        file.is_uploaded ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                      }`}>
+                        {file.is_uploaded ? 'Ready' : 'Uploading'}
+                      </span>
                     </div>
-                  ))}
+                    <p className="text-xs text-gray-500 dark:text-dark-muted">{file.filename} • {(file.file_size / 1024).toFixed(1)} KB</p>
+                    {!file.is_uploaded && (
+                      <div className="mt-2">
+                        <div className="w-full bg-gray-200 dark:bg-dark-border rounded-full h-2">
+                          <div
+                            className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${file.upload_progress || 0}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-xs text-gray-600 dark:text-dark-muted">{file.upload_progress || 0}%</span>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeleteIndividualFile(file.id)
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-all duration-200"
+                    title="Delete individual file"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+              {individualFiles.length === 0 && (
+                <div className="text-center py-8 text-gray-500 dark:text-dark-muted">
+                  No individual files uploaded yet
                 </div>
               )}
             </div>
-          )}
+          </div>
+
+          {/* Step 3: Start Conversion */}
+          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg p-6 border border-gray-200/50 dark:border-dark-border">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-dark-text">Step 3: Start Conversion</h2>
+                {selectedConversionFile && selectedIndividualFiles.size > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-gray-600 dark:text-dark-muted">
+                      Ready to process <strong>{selectedIndividualFiles.size}</strong> individual file(s) with conversion file <strong>{selectedConversionFile.name}</strong>
+                    </p>
+                    <div className="text-sm text-blue-600 dark:text-blue-400">
+                      ✓ Files are independently managed and can be uploaded/deleted separately
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-gray-600 dark:text-dark-muted">
+                      Select one conversion file and multiple individual files to start processing
+                    </p>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      Files can be uploaded and managed independently of each other
+                    </div>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleStartConversion}
+                disabled={loading || !selectedConversionFile || selectedIndividualFiles.size === 0}
+                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:from-green-600 hover:to-emerald-700 transition-all duration-200 font-medium"
+              >
+                <Play className="h-5 w-5" />
+                <span>Start Conversion</span>
+              </button>
+            </div>
+
+            {/* Active Conversions Progress */}
+            {getSortedGroups().filter(g => g.status === 'processing' || g.status === 'pending').length > 0 && (
+              <div className="mt-6 space-y-4">
+                <h3 className="text-md font-semibold text-gray-800 dark:text-dark-text">Active Conversions</h3>
+                {getSortedGroups().filter(g => g.status === 'processing' || g.status === 'pending').map((group) => (
+                  <div key={group.id} className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-medium text-gray-900 dark:text-dark-text">
+                        #{getSortedGroups().findIndex(g => g.id === group.id) + 1} {group.name}
+                      </h4>
+                      <span className="text-sm text-blue-600 dark:text-blue-400">{group.progress}%</span>
+                    </div>
+                    <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2 mb-2">
+                      <div
+                        className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${group.progress}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-600 dark:text-dark-muted">
+                      Processing {group.processed_outputs} / {group.total_outputs} outputs
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

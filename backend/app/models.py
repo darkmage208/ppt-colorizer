@@ -129,7 +129,7 @@ class IndividualFile(Base):
     __tablename__ = "individual_files"
 
     id = Column(Integer, primary_key=True, index=True)
-    conversion_file_id = Column(Integer, ForeignKey("conversion_files.id"))
+    conversion_file_id = Column(Integer, ForeignKey("conversion_files.id"), nullable=True)  # Allow independent files
     name = Column(String, index=True)
     filename = Column(String)
     file_path = Column(String)

@@ -183,7 +183,7 @@ class ConversionFile(ConversionFileBase):
 
 class IndividualFileBase(BaseModel):
     name: str
-    conversion_file_id: int
+    conversion_file_id: Optional[int] = None  # Allow independent files
 
 class IndividualFileCreate(IndividualFileBase):
     pass
@@ -243,6 +243,13 @@ class ConversionGroupWithDetails(ConversionGroup):
 
 class ConversionFileWithDetails(ConversionFile):
     individual_files: List[IndividualFile] = []
+
+    class Config:
+        from_attributes = True
+
+class StartConversionRequest(BaseModel):
+    conversion_file_id: int
+    individual_file_ids: List[int]
 
     class Config:
         from_attributes = True

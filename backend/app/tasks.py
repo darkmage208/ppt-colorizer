@@ -166,7 +166,7 @@ def process_ppt_job(job_id: int):
 
 
 @celery_app.task
-def process_conversion_task(group_id: int):
+def process_conversion_task(group_id: int, conversion_file_id: int = None):
     """Process genetic data conversion for a conversion group"""
     db = SessionLocal()
     try:
@@ -189,7 +189,16 @@ def process_conversion_task(group_id: int):
             return {"error": "Individual file not found"}
 
         # Get the conversion file
-        conversion_file = db.query(ConversionFile).filter(ConversionFile.id == individual_file.conversion_file_id).first()
+        conversion_file = None
+
+        # First, try to use the explicitly passed conversion_file_id (for independent files)
+        if conversion_file_id:
+            conversion_file = db.query(ConversionFile).filter(ConversionFile.id == conversion_file_id).first()
+
+        # If not provided, try to get it from the individual file relationship (legacy)
+        elif individual_file.conversion_file_id:
+            conversion_file = db.query(ConversionFile).filter(ConversionFile.id == individual_file.conversion_file_id).first()
+
         if not conversion_file:
             group.status = ConversionStatus.ERROR
             group.error_message = "Conversion file not found"
