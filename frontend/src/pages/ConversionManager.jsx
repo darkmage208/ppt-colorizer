@@ -88,25 +88,34 @@ const ConversionManager = () => {
     const hasActiveConversions = conversionGroups.some(g => g.status === 'processing' || g.status === 'pending')
     if (hasActiveConversions) {
       const interval = setInterval(() => {
+        // Refresh both conversion groups and individual files for complete real-time updates
         fetchConversionGroups()
+        fetchIndividualFiles()
       }, 1500) // Refresh every 1.5 seconds for better responsiveness
       return () => clearInterval(interval)
     }
   }, [conversionGroups])
 
 
-  // Auto-select first group when groups change and no group is selected
+  // Auto-select first group when groups change and update selected group data
   useEffect(() => {
     const sortedGroups = getSortedGroups()
     if (sortedGroups.length > 0 && !selectedGroup) {
       setSelectedGroup(sortedGroups[0])
     } else if (sortedGroups.length === 0) {
       setSelectedGroup(null)
-    } else if (selectedGroup && !conversionGroups.find(g => g.id === selectedGroup.id)) {
-      // If selected group no longer exists, select first available (most recent)
-      setSelectedGroup(sortedGroups[0])
+    } else if (selectedGroup) {
+      // Update selected group with latest data or select first if current one doesn't exist
+      const updatedGroup = conversionGroups.find(g => g.id === selectedGroup.id)
+      if (updatedGroup) {
+        // Update selected group with latest data for real-time updates
+        setSelectedGroup(updatedGroup)
+      } else {
+        // If selected group no longer exists, select first available (most recent)
+        setSelectedGroup(sortedGroups[0])
+      }
     }
-  }, [conversionGroups, selectedGroup])
+  }, [conversionGroups])
 
   // Get sorted groups by most recent first
   const getSortedGroups = () => {
@@ -471,13 +480,13 @@ const ConversionManager = () => {
     }
   }
 
-  // Delete conversion group
+  // Delete conversion
   const handleDeleteGroup = async (groupId) => {
     const group = conversionGroups.find(g => g.id === groupId)
     const proceed = await showConfirmDialog(
-      'Delete Conversion Group',
+      'Delete Conversion',
       <div className="space-y-3">
-        <p>Are you sure you want to delete this conversion group?</p>
+        <p>Are you sure you want to delete this conversion?</p>
         {group && (
           <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded border">
             <p className="font-medium text-gray-900 dark:text-gray-100">{group.name}</p>
@@ -506,11 +515,11 @@ const ConversionManager = () => {
 
     try {
       await api.delete(`/conversions/groups/${groupId}`)
-      toast.success('Conversion group deleted successfully!')
+      toast.success('Conversion deleted successfully!')
       fetchConversionGroups()
     } catch (error) {
-      console.error('Error deleting group:', error)
-      toast.error('Failed to delete conversion group')
+      console.error('Error deleting conversion:', error)
+      toast.error('Failed to delete conversion')
     }
   }
 
@@ -751,14 +760,16 @@ const ConversionManager = () => {
             )}
 
             {/* Individual Files Grid */}
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {individualFiles.map((file) => (
                 <div
                   key={file.id}
-                  className={`flex items-center space-x-4 p-3 rounded-lg transition-all duration-200 cursor-pointer relative group ${
-                    selectedIndividualFiles.has(file.id)
-                      ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-                      : 'bg-gray-50 dark:bg-dark-hover hover:bg-gray-100 dark:hover:bg-gray-700'
+                  className={`p-4 border rounded-xl transition-all duration-200 relative group cursor-pointer ${
+                    selectedIndividualFiles.has(file.id) && file.is_uploaded
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md'
+                      : file.is_uploaded
+                        ? 'border-gray-200 dark:border-dark-border hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md'
+                        : 'border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-gray-800/50'
                   }`}
                   onClick={() => {
                     if (file.is_uploaded) {
@@ -774,42 +785,82 @@ const ConversionManager = () => {
                     }
                   }}
                 >
-                  <div className="flex items-center">
-                    {selectedIndividualFiles.has(file.id) ? (
-                      <CheckCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
-                    ) : (
-                      <Users className="h-5 w-5 text-blue-500 flex-shrink-0" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium text-gray-900 dark:text-dark-text truncate">{file.name}</h3>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        file.is_uploaded ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-                      }`}>
-                        {file.is_uploaded ? 'Ready' : 'Uploading'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-dark-muted">{file.filename} • {(file.file_size / 1024).toFixed(1)} KB</p>
-                    {!file.is_uploaded && (
-                      <div className="mt-2">
-                        <div className="w-full bg-gray-200 dark:bg-dark-border rounded-full h-2">
-                          <div
-                            className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${file.upload_progress || 0}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-xs text-gray-600 dark:text-dark-muted">{file.upload_progress || 0}%</span>
+                  {/* Card Header */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      {selectedIndividualFiles.has(file.id) && file.is_uploaded ? (
+                        <CheckCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                      ) : (
+                        <Users className={`h-5 w-5 flex-shrink-0 ${
+                          file.is_uploaded ? 'text-blue-500' : 'text-gray-400'
+                        }`} />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-medium text-gray-900 dark:text-dark-text truncate">
+                          {file.name}
+                        </h3>
                       </div>
-                    )}
+                    </div>
+
+                    {/* Status Badge */}
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      file.is_uploaded
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                    }`}>
+                      {file.is_uploaded ? 'Ready' : 'Uploading'}
+                    </span>
                   </div>
+
+                  {/* File Details */}
+                  <div className="space-y-2">
+                    <p className="text-xs text-gray-500 dark:text-dark-muted truncate">
+                      {file.filename}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-dark-muted">
+                      Size: {(file.file_size / 1024).toFixed(1)} KB
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                      Uploaded: {new Date(file.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+
+                  {/* Upload Progress */}
+                  {!file.is_uploaded && (
+                    <div className="mt-4 space-y-2">
+                      <div className="w-full bg-gray-200 dark:bg-dark-border rounded-full h-2">
+                        <div
+                          className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${file.upload_progress || 0}%` }}
+                        ></div>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600 dark:text-dark-muted">
+                          Progress: {file.upload_progress || 0}%
+                        </span>
+                        {file.upload_progress === 100 && (
+                          <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                            Processing...
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Selection Indicator */}
+                  {selectedIndividualFiles.has(file.id) && file.is_uploaded && (
+                    <div className="absolute top-2 right-2">
+                      <div className="w-3 h-3 bg-blue-600 rounded-full border-2 border-white dark:border-gray-800"></div>
+                    </div>
+                  )}
+
+                  {/* Delete Button */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
                       handleDeleteIndividualFile(file.id)
                     }}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-all duration-200"
-                    title="Delete individual file"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute bottom-2 right-2 p-1.5 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -898,7 +949,7 @@ const ConversionManager = () => {
               </div>
               <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-dark-muted">
                 <Target className="h-4 w-4" />
-                <span>{conversionGroups.length} groups</span>
+                <span>{conversionGroups.length} Conversions</span>
               </div>
             </div>
           </div>
@@ -907,11 +958,11 @@ const ConversionManager = () => {
           {conversionGroups.length > 0 ? (
             <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg border border-gray-200/50 dark:border-dark-border overflow-hidden">
               <div className="flex h-[600px]">
-                {/* Left Sidebar - Groups List */}
+                {/* Left Sidebar - Conversions List */}
                 <div className="w-80 border-r border-gray-200/50 dark:border-dark-border flex flex-col">
                   <div className="p-4 border-b border-gray-200/50 dark:border-dark-border">
-                    <h3 className="text-md font-semibold text-gray-800 dark:text-dark-text">Conversion Groups</h3>
-                    <p className="text-sm text-gray-600 dark:text-dark-muted">{conversionGroups.length} groups available</p>
+                    <h3 className="text-md font-semibold text-gray-800 dark:text-dark-text">Conversions</h3>
+                    <p className="text-sm text-gray-600 dark:text-dark-muted">{conversionGroups.length} conversions available</p>
                   </div>
                   <div className="flex-1 overflow-y-auto">
                     <div className="space-y-1 p-2">
@@ -971,11 +1022,11 @@ const ConversionManager = () => {
                   </div>
                 </div>
 
-                {/* Right Panel - Selected Group Details */}
+                {/* Right Panel - Selected Conversion Details */}
                 <div className="flex-1 flex flex-col">
                   {selectedGroup ? (
                     <>
-                      {/* Group Header */}
+                      {/* Conversion Header */}
                       <div className="p-6 border-b border-gray-200/50 dark:border-dark-border">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-4">
@@ -996,7 +1047,7 @@ const ConversionManager = () => {
                             <button
                               onClick={() => handleDeleteGroup(selectedGroup.id)}
                               className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                              title="Delete Group"
+                              title="Delete Conversion"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -1032,6 +1083,83 @@ const ConversionManager = () => {
                           </div>
                         )}
                       </div>
+
+                      {/* Source File Information */}
+                      {selectedGroup.individual_file && (
+                        <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200/50 dark:border-dark-border">
+                          <h4 className="text-sm font-semibold text-gray-800 dark:text-dark-text mb-3">Source File Information</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="space-y-1">
+                              <p className="text-xs text-gray-500 dark:text-dark-muted">File Name</p>
+                              <p className="text-sm font-medium text-gray-900 dark:text-dark-text truncate">
+                                {selectedGroup.individual_file.name}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs text-gray-500 dark:text-dark-muted">Original Filename</p>
+                              <p className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                                {selectedGroup.individual_file.filename}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs text-gray-500 dark:text-dark-muted">File Size</p>
+                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                                {selectedGroup.individual_file.file_size > 1024 * 1024
+                                  ? `${(selectedGroup.individual_file.file_size / (1024 * 1024)).toFixed(2)} MB`
+                                  : `${(selectedGroup.individual_file.file_size / 1024).toFixed(1)} KB`
+                                }
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs text-gray-500 dark:text-dark-muted">Upload Status</p>
+                              <div className="flex items-center space-x-2">
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  selectedGroup.individual_file.is_uploaded
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                                }`}>
+                                  {selectedGroup.individual_file.is_uploaded ? 'Uploaded' : 'Processing'}
+                                </span>
+                                {!selectedGroup.individual_file.is_uploaded && (
+                                  <span className="text-xs text-gray-500">
+                                    {selectedGroup.individual_file.upload_progress || 0}%
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs text-gray-500 dark:text-dark-muted">Upload Date</p>
+                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                                {new Date(selectedGroup.individual_file.created_at).toLocaleDateString()} {new Date(selectedGroup.individual_file.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs text-gray-500 dark:text-dark-muted">Processing Progress</p>
+                              <div className="flex items-center space-x-2">
+                                <div className="flex-1">
+                                  <div className="w-full bg-gray-200 dark:bg-dark-border rounded-full h-1.5">
+                                    <div
+                                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                                        selectedGroup.status === 'completed'
+                                          ? 'bg-green-500'
+                                          : selectedGroup.status === 'processing'
+                                            ? 'bg-blue-500'
+                                            : selectedGroup.status === 'error'
+                                              ? 'bg-red-500'
+                                              : 'bg-gray-400'
+                                      }`}
+                                      style={{ width: `${selectedGroup.status === 'completed' ? 100 : selectedGroup.progress || 0}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                                <span className="text-xs text-gray-600 dark:text-dark-muted min-w-0">
+                                  {selectedGroup.status === 'completed' ? '100%' : `${selectedGroup.progress || 0}%`}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Result Files */}
                       <div className="flex-1 overflow-y-auto p-6">
@@ -1166,7 +1294,7 @@ const ConversionManager = () => {
                       <div className="text-center">
                         <Target className="h-16 w-16 mx-auto mb-4 opacity-50" />
                         <h4 className="text-lg font-medium mb-2">Select a Group</h4>
-                        <p className="text-sm">Choose a conversion group from the list to view its results</p>
+                        <p className="text-sm">Choose a conversion from the list to view its results</p>
                       </div>
                     </div>
                   )}
