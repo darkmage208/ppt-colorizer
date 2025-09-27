@@ -4,11 +4,12 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from .. import schemas, models, auth
 from ..database import get_db
-from ..conversion_storage import conversion_storage
 from ..tasks import process_conversion_task
 import io
 import logging
 import os
+import uuid
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +63,18 @@ async def upload_conversion_file(
         if len(header) < 2 or 'Name' not in header or 'RsID' not in header:
             raise HTTPException(status_code=400, detail="File must contain 'Name' and 'RsID' columns")
 
-        # Reset file pointer and upload to storage
-        conversion_file.file.seek(0)
-        file_data = io.BytesIO(file_content)
-        file_key = conversion_storage.upload_file(file_data, conversion_file.filename, "conversion_files")
+        # Save file to local storage
+        uploads_path = Path("uploads/conversion_files")
+        uploads_path.mkdir(exist_ok=True, parents=True)
+
+        # Generate unique filename to avoid conflicts
+        unique_filename = f"{uuid.uuid4()}_{conversion_file.filename}"
+        file_path = uploads_path / unique_filename
+
+        with open(file_path, 'wb') as f:
+            f.write(file_content)
+
+        file_key = str(file_path.absolute())
 
         # Save to database
         db_conversion_file = models.ConversionFile(
@@ -117,7 +126,12 @@ def delete_conversion_file(
     try:
         # Delete file from storage
         if conversion_file.file_path:
-            conversion_storage.delete_file(conversion_file.file_path)
+            try:
+                file_path = Path(conversion_file.file_path)
+                if file_path.exists():
+                    file_path.unlink()
+            except Exception as e:
+                logger.warning(f"Could not delete file {conversion_file.file_path}: {e}")
 
         # Mark as inactive instead of hard delete to preserve referential integrity
         conversion_file.is_active = False
@@ -224,8 +238,18 @@ async def upload_independent_individual_file(
             if col not in header:
                 raise HTTPException(status_code=400, detail=f"File must contain '{col}' column")
 
-        # Upload to storage
-        file_key = conversion_storage.upload_file(file_data, individual_file.filename, "individual_files")
+        # Save file to local storage
+        uploads_path = Path("uploads/individual_files")
+        uploads_path.mkdir(exist_ok=True, parents=True)
+
+        # Generate unique filename to avoid conflicts
+        unique_filename = f"{uuid.uuid4()}_{individual_file.filename}"
+        file_path = uploads_path / unique_filename
+
+        with open(file_path, 'wb') as f:
+            f.write(file_data.getvalue())
+
+        file_key = str(file_path.absolute())
 
         # Update database record
         db_individual_file.file_path = file_key
@@ -274,7 +298,12 @@ def delete_individual_file(
     try:
         # Delete file from storage
         if individual_file.file_path:
-            conversion_storage.delete_file(individual_file.file_path)
+            try:
+                file_path = Path(individual_file.file_path)
+                if file_path.exists():
+                    file_path.unlink()
+            except Exception as e:
+                logger.warning(f"Could not delete file {individual_file.file_path}: {e}")
 
         # Delete from database
         db.delete(individual_file)
@@ -387,8 +416,18 @@ async def upload_individual_file(
                 logger.error(f"Missing column '{col}' in headers: {header}")
                 raise HTTPException(status_code=400, detail=f"File must contain '{col}' column")
 
-        # Upload to storage
-        file_key = conversion_storage.upload_file(file_data, individual_file.filename, "individual_files")
+        # Save file to local storage
+        uploads_path = Path("uploads/individual_files")
+        uploads_path.mkdir(exist_ok=True, parents=True)
+
+        # Generate unique filename to avoid conflicts
+        unique_filename = f"{uuid.uuid4()}_{individual_file.filename}"
+        file_path = uploads_path / unique_filename
+
+        with open(file_path, 'wb') as f:
+            f.write(file_data.getvalue())
+
+        file_key = str(file_path.absolute())
 
         # Update database record
         db_individual_file.file_path = file_key
@@ -584,9 +623,16 @@ def download_result_file(
         raise HTTPException(status_code=404, detail="Result file not found")
 
     try:
-        file_content = conversion_storage.download_file(result.file_path)
+        file_path = Path(result.file_path)
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+
+        def iterfile():
+            with open(file_path, 'rb') as f:
+                yield from f
+
         return StreamingResponse(
-            io.BytesIO(file_content),
+            iterfile(),
             media_type="text/plain",
             headers={"Content-Disposition": f"attachment; filename={result.filename}"}
         )
@@ -611,7 +657,12 @@ def delete_conversion_group(
     try:
         # Delete result files from storage
         for result in group.results:
-            conversion_storage.delete_file(result.file_path)
+            try:
+                file_path = Path(result.file_path)
+                if file_path.exists():
+                    file_path.unlink()
+            except Exception as e:
+                logger.warning(f"Could not delete file {result.file_path}: {e}")
 
         # Delete from database (cascade will handle results)
         db.delete(group)
@@ -639,7 +690,12 @@ def delete_result_file(
 
     try:
         # Delete file from storage
-        conversion_storage.delete_file(result.file_path)
+        try:
+            file_path = Path(result.file_path)
+            if file_path.exists():
+                file_path.unlink()
+        except Exception as e:
+            logger.warning(f"Could not delete file {result.file_path}: {e}")
 
         # Delete from database
         db.delete(result)

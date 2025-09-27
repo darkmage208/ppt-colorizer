@@ -5,7 +5,6 @@ from .config import settings
 from .models import Job, JobStatus, User, ConversionGroup, ConversionStatus, ConversionResult, IndividualFile, ConversionFile
 from .ppt_processor import PPTProcessor
 from .storage import storage
-from .conversion_storage import conversion_storage
 import traceback
 import io
 import pandas as pd
@@ -206,8 +205,13 @@ def process_conversion_task(group_id: int, conversion_file_id: int = None):
             return {"error": "Conversion file not found"}
 
         try:
-            # Download and read conversion file (Name -> RsID mapping)
-            conversion_data = conversion_storage.download_file(conversion_file.file_path)
+            # Read conversion file (Name -> RsID mapping)
+            conversion_file_path = Path(conversion_file.file_path)
+            if not conversion_file_path.exists():
+                raise FileNotFoundError(f"Conversion file not found: {conversion_file.file_path}")
+
+            with open(conversion_file_path, 'rb') as f:
+                conversion_data = f.read()
             conversion_content = conversion_data.decode('utf-8')
             conversion_sep = detect_separator(conversion_content)
 
@@ -229,8 +233,13 @@ def process_conversion_task(group_id: int, conversion_file_id: int = None):
             logger = logging.getLogger(__name__)
             logger.info(f"Created conversion lookup with {len(conversion_lookup)} entries")
 
-            # Download and read individual file
-            individual_data = conversion_storage.download_file(individual_file.file_path)
+            # Read individual file
+            individual_file_path = Path(individual_file.file_path)
+            if not individual_file_path.exists():
+                raise FileNotFoundError(f"Individual file not found: {individual_file.file_path}")
+
+            with open(individual_file_path, 'rb') as f:
+                individual_data = f.read()
             individual_content = individual_data.decode('utf-8')
             individual_sep = detect_separator(individual_content)
 
@@ -309,10 +318,20 @@ def process_conversion_task(group_id: int, conversion_file_id: int = None):
                     result_df.to_csv(output_buffer, sep='\t', index=False)
                     output_content = output_buffer.getvalue()
 
-                    # Upload the result file
+                    # Save the result file to local storage
+                    outputs_path = Path("outputs/conversion_results")
+                    outputs_path.mkdir(exist_ok=True, parents=True)
+
                     filename = f"{individual_file.name}_{output_col}_converted.txt"
-                    file_data = io.BytesIO(output_content.encode('utf-8'))
-                    file_key = conversion_storage.upload_file(file_data, filename, "conversion_results")
+                    # Generate unique filename to avoid conflicts
+                    import uuid
+                    unique_filename = f"{uuid.uuid4()}_{filename}"
+                    file_path = outputs_path / unique_filename
+
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(output_content)
+
+                    file_key = str(file_path.absolute())
 
                     # Save result to database
                     conversion_result = ConversionResult(
