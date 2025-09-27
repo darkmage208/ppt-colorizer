@@ -97,15 +97,21 @@ const ConversionManager = () => {
 
   // Auto-select first group when groups change and no group is selected
   useEffect(() => {
-    if (conversionGroups.length > 0 && !selectedGroup) {
-      setSelectedGroup(conversionGroups[0])
-    } else if (conversionGroups.length === 0) {
+    const sortedGroups = getSortedGroups()
+    if (sortedGroups.length > 0 && !selectedGroup) {
+      setSelectedGroup(sortedGroups[0])
+    } else if (sortedGroups.length === 0) {
       setSelectedGroup(null)
     } else if (selectedGroup && !conversionGroups.find(g => g.id === selectedGroup.id)) {
-      // If selected group no longer exists, select first available
-      setSelectedGroup(conversionGroups[0])
+      // If selected group no longer exists, select first available (most recent)
+      setSelectedGroup(sortedGroups[0])
     }
   }, [conversionGroups, selectedGroup])
+
+  // Get sorted groups by most recent first
+  const getSortedGroups = () => {
+    return [...conversionGroups].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  }
 
   // Custom confirmation dialog helper
   const showConfirmDialog = (title, message, onConfirm, options = {}) => {
@@ -651,13 +657,15 @@ const ConversionManager = () => {
               </div>
 
               {/* Active Conversions Progress */}
-              {conversionGroups.filter(g => g.status === 'processing' || g.status === 'pending').length > 0 && (
+              {getSortedGroups().filter(g => g.status === 'processing' || g.status === 'pending').length > 0 && (
                 <div className="mt-6 space-y-4">
                   <h3 className="text-md font-semibold text-gray-800 dark:text-dark-text">Active Conversions</h3>
-                  {conversionGroups.filter(g => g.status === 'processing' || g.status === 'pending').map((group) => (
+                  {getSortedGroups().filter(g => g.status === 'processing' || g.status === 'pending').map((group, index) => (
                     <div key={group.id} className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-sm font-medium text-gray-900 dark:text-dark-text">{group.name}</h4>
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-dark-text">
+                          #{getSortedGroups().findIndex(g => g.id === group.id) + 1} {group.name}
+                        </h4>
                         <span className="text-sm text-blue-600 dark:text-blue-400">{group.progress}%</span>
                       </div>
                       <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2 mb-2">
@@ -706,7 +714,7 @@ const ConversionManager = () => {
                   </div>
                   <div className="flex-1 overflow-y-auto">
                     <div className="space-y-1 p-2">
-                      {conversionGroups.map((group) => (
+                      {getSortedGroups().map((group, index) => (
                         <div
                           key={group.id}
                           className={`p-4 rounded-lg cursor-pointer transition-all duration-200 ${
@@ -720,7 +728,7 @@ const ConversionManager = () => {
                             {getStatusIcon(group.status)}
                             <div className="flex-1 min-w-0">
                               <h4 className="text-sm font-medium text-gray-800 dark:text-dark-text truncate">
-                                {group.name}
+                                #{index + 1} {group.name}
                               </h4>
                               <p className="text-xs text-gray-600 dark:text-dark-muted truncate">
                                 {group.individual_file?.name}
@@ -772,7 +780,9 @@ const ConversionManager = () => {
                           <div className="flex items-center space-x-4">
                             {getStatusIcon(selectedGroup.status)}
                             <div>
-                              <h3 className="text-lg font-semibold text-gray-800 dark:text-dark-text">{selectedGroup.name}</h3>
+                              <h3 className="text-lg font-semibold text-gray-800 dark:text-dark-text">
+                                #{getSortedGroups().findIndex(g => g.id === selectedGroup.id) + 1} {selectedGroup.name}
+                              </h3>
                               <p className="text-gray-600 dark:text-dark-muted">
                                 Source: {selectedGroup.individual_file?.name} • Created {new Date(selectedGroup.created_at).toLocaleDateString()}
                               </p>
