@@ -555,7 +555,11 @@ def get_conversion_groups(
     current_user: models.User = Depends(auth.require_superadmin)
 ):
     """Get all conversion groups with results"""
+    from sqlalchemy.orm import joinedload
     groups = db.query(models.ConversionGroup)\
+        .options(joinedload(models.ConversionGroup.individual_file))\
+        .options(joinedload(models.ConversionGroup.results))\
+        .order_by(models.ConversionGroup.created_at.desc())\
         .offset(skip)\
         .limit(limit)\
         .all()

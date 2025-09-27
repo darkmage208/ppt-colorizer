@@ -52,9 +52,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./backend/uploads:/app/uploads
-      - ./backend/outputs:/app/outputs
     networks:
       - app-network
     restart: unless-stopped
@@ -98,7 +95,7 @@ services:
           memory: 4G
         reservations:
           memory: 2G
-    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=1 -Q ppt_processing --pool=prefork
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=1 -Q ppt_processing,conversion_processing --pool=prefork
 
   flower:
     build: ./backend

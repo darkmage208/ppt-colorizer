@@ -203,7 +203,7 @@ class IndividualFile(IndividualFileBase):
 
 class ConversionGroupBase(BaseModel):
     name: str
-    individual_file_id: int
+    individual_file_id: Optional[int] = None
 
 class ConversionGroupCreate(ConversionGroupBase):
     pass
@@ -235,7 +235,7 @@ class ConversionResult(BaseModel):
         from_attributes = True
 
 class ConversionGroupWithDetails(ConversionGroup):
-    individual_file: IndividualFile
+    individual_file: Optional[IndividualFile] = None
     results: List[ConversionResult] = []
 
     class Config:

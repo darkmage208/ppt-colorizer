@@ -64,7 +64,6 @@ services:
     volumes:
       - ./backend:/app
       - /app/__pycache__
-      - conversion_storage:/app/conversion_storage
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   celery:
@@ -94,7 +93,6 @@ services:
     volumes:
       - ./backend:/app
       - /app/__pycache__
-      - conversion_storage:/app/conversion_storage
     command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=8 -Q ppt_processing,conversion_processing
 
   frontend:
@@ -137,7 +135,6 @@ volumes:
   postgres_local_data:
   redis_local_data:
   pgadmin_data:
-  conversion_storage:
 
 networks:
   app-network-local:
