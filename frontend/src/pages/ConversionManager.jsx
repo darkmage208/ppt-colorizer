@@ -26,6 +26,8 @@ const ConversionManager = () => {
   const [selectedGroup, setSelectedGroup] = useState(null)
   const [loading, setLoading] = useState(false)
   const [downloadingFiles, setDownloadingFiles] = useState(new Set())
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [individualUploadProgress, setIndividualUploadProgress] = useState({})
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
     title: '',
@@ -150,10 +152,11 @@ const ConversionManager = () => {
     const file = event.target.files[0]
     if (!file) return
 
-    const name = prompt('Enter a name for this conversion file:')
-    if (!name) return
+    // Use the original filename without extension as the name
+    const name = file.name.replace(/\.[^/.]+$/, "")
 
     setLoading(true)
+    setUploadProgress(0)
     const formData = new FormData()
     formData.append('name', name)
     formData.append('conversion_file', file)
@@ -162,6 +165,10 @@ const ConversionManager = () => {
       await api.post('/conversions/conversion-files/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: (progressEvent) => {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+          setUploadProgress(progress)
         }
       })
       toast.success('Conversion file uploaded successfully!')
@@ -171,6 +178,7 @@ const ConversionManager = () => {
       toast.error('Failed to upload conversion file')
     } finally {
       setLoading(false)
+      setUploadProgress(0)
       event.target.value = ''
     }
   }
@@ -181,11 +189,20 @@ const ConversionManager = () => {
     if (!files.length) return
 
     setLoading(true)
+    setIndividualUploadProgress({})
 
     try {
       // Upload each file independently
-      for (const file of files) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
         const name = file.name.replace('.txt', '').replace(/[^a-zA-Z0-9-_]/g, '_')
+        const fileId = `file_${i}_${Date.now()}`
+
+        // Initialize progress for this file
+        setIndividualUploadProgress(prev => ({
+          ...prev,
+          [fileId]: { name: file.name, progress: 0 }
+        }))
 
         const formData = new FormData()
         formData.append('name', name)
@@ -194,8 +211,21 @@ const ConversionManager = () => {
         await api.post('/conversions/individual-files/', formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
+          },
+          onUploadProgress: (progressEvent) => {
+            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+            setIndividualUploadProgress(prev => ({
+              ...prev,
+              [fileId]: { ...prev[fileId], progress }
+            }))
           }
         })
+
+        // Mark as completed
+        setIndividualUploadProgress(prev => ({
+          ...prev,
+          [fileId]: { ...prev[fileId], progress: 100, completed: true }
+        }))
       }
 
       toast.success(`${files.length} individual file(s) uploaded successfully!`)
@@ -206,6 +236,7 @@ const ConversionManager = () => {
       toast.error(errorMessage)
     } finally {
       setLoading(false)
+      setIndividualUploadProgress({})
       event.target.value = ''
     }
   }
@@ -662,6 +693,26 @@ const ConversionManager = () => {
               </label>
             </div>
 
+            {/* Upload Progress for Conversion Files */}
+            {loading && uploadProgress > 0 && (
+              <div className="mb-4 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-orange-700 dark:text-orange-300">
+                    Uploading conversion file...
+                  </span>
+                  <span className="text-sm text-orange-600 dark:text-orange-400">
+                    {uploadProgress}%
+                  </span>
+                </div>
+                <div className="w-full bg-orange-200 dark:bg-orange-800 rounded-full h-2">
+                  <div
+                    className="bg-gradient-to-r from-orange-500 to-amber-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
+
             {/* Conversion Files Selection */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {conversionFiles.map((file) => (
@@ -731,6 +782,37 @@ const ConversionManager = () => {
                 />
               </label>
             </div>
+
+            {/* Upload Progress for Individual Files */}
+            {Object.keys(individualUploadProgress).length > 0 && (
+              <div className="mb-4 space-y-3">
+                {Object.entries(individualUploadProgress).map(([fileId, fileData]) => (
+                  <div key={fileId} className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300 truncate">
+                        {fileData.name}
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-blue-600 dark:text-blue-400">
+                          {fileData.progress}%
+                        </span>
+                        {fileData.completed && (
+                          <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                            <div className="w-2 h-2 bg-white rounded-full"></div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+                      <div
+                        className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${fileData.progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {individualFiles.filter(f => f.is_uploaded).length > 0 && (
               <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
