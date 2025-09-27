@@ -26,7 +26,17 @@ const ConversionManager = () => {
   const [selectedConversionFile, setSelectedConversionFile] = useState(null)
   const [selectedGroup, setSelectedGroup] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState({})
+  const [downloadingFiles, setDownloadingFiles] = useState(new Set())
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: '',
+    message: '',
+    onConfirm: null,
+    onCancel: null,
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    type: 'default' // 'default', 'warning', 'danger'
+  })
 
 
   // Fetch conversion files
@@ -96,6 +106,29 @@ const ConversionManager = () => {
       setSelectedGroup(conversionGroups[0])
     }
   }, [conversionGroups, selectedGroup])
+
+  // Custom confirmation dialog helper
+  const showConfirmDialog = (title, message, onConfirm, options = {}) => {
+    return new Promise((resolve) => {
+      setConfirmDialog({
+        open: true,
+        title,
+        message,
+        onConfirm: () => {
+          onConfirm?.()
+          setConfirmDialog(prev => ({ ...prev, open: false }))
+          resolve(true)
+        },
+        onCancel: () => {
+          setConfirmDialog(prev => ({ ...prev, open: false }))
+          resolve(false)
+        },
+        confirmText: options.confirmText || 'Confirm',
+        cancelText: options.cancelText || 'Cancel',
+        type: options.type || 'default'
+      })
+    })
+  }
 
   // Upload conversion file
   const handleUploadConversionFile = async (event) => {
@@ -186,16 +219,57 @@ const ConversionManager = () => {
     }
   }
 
-  // Download result file
-  const handleDownloadResult = async (groupId, resultId, filename) => {
-    try {
-      const response = await api.get(
-        `/conversions/groups/${groupId}/download/${resultId}`,
+  // Download result file with loading state
+  const handleDownloadResult = async (groupId, resultId, filename, fileSize = 0) => {
+    // Warn for large files (>3MB)
+    if (fileSize > 3 * 1024 * 1024) {
+      const proceed = await showConfirmDialog(
+        'Large File Download',
+        <div className="space-y-2">
+          <p>This file is <strong>{(fileSize / (1024 * 1024)).toFixed(1)}MB</strong> and may take some time to download.</p>
+          <div className="text-sm text-gray-600 break-all bg-gray-50 dark:bg-gray-800 p-2 rounded">
+            {filename}
+          </div>
+          <p>Do you want to continue?</p>
+        </div>,
+        null,
         {
-          responseType: 'blob'
+          confirmText: 'Download',
+          cancelText: 'Cancel',
+          type: 'warning'
+        }
+      )
+      if (!proceed) return
+    }
+
+    // Add to downloading set
+    setDownloadingFiles(prev => new Set([...prev, resultId]))
+
+    try {
+      // Show immediate feedback with proper styling for long filenames
+      toast.loading(
+        <div className="flex flex-col">
+          <span className="font-medium">Preparing download...</span>
+          <span className="text-sm text-gray-600 break-all">{filename}</span>
+        </div>,
+        {
+          id: `download-${resultId}`,
+          style: {
+            maxWidth: '400px',
+            width: '400px'
+          }
         }
       )
 
+      const response = await api.get(
+        `/conversions/groups/${groupId}/download/${resultId}`,
+        {
+          responseType: 'blob',
+          timeout: 60000, // 60 second timeout for large files
+        }
+      )
+
+      // Create and trigger download
       const url = window.URL.createObjectURL(new Blob([response.data]))
       const link = document.createElement('a')
       link.href = url
@@ -205,16 +279,114 @@ const ConversionManager = () => {
       link.remove()
       window.URL.revokeObjectURL(url)
 
-      toast.success('File downloaded successfully!')
+      // Success feedback with proper styling
+      toast.success(
+        <div className="flex flex-col">
+          <span className="font-medium">Downloaded successfully!</span>
+          <span className="text-sm text-gray-600 break-all">{filename}</span>
+        </div>,
+        {
+          id: `download-${resultId}`,
+          style: {
+            maxWidth: '400px',
+            width: '400px'
+          }
+        }
+      )
     } catch (error) {
       console.error('Error downloading file:', error)
-      toast.error('Failed to download file')
+
+      // Enhanced error messages
+      let errorMessage = 'Failed to download file'
+      if (error.code === 'ECONNABORTED') {
+        errorMessage = 'Download timeout - file may be too large'
+      } else if (error.response?.status === 404) {
+        errorMessage = 'File not found'
+      } else if (error.response?.status === 403) {
+        errorMessage = 'Access denied'
+      } else if (!navigator.onLine) {
+        errorMessage = 'No internet connection'
+      }
+
+      toast.error(errorMessage, { id: `download-${resultId}` })
+    } finally {
+      // Remove from downloading set
+      setDownloadingFiles(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(resultId)
+        return newSet
+      })
+    }
+  }
+
+  // Download all files in a group
+  const handleDownloadAllResults = async (groupId, results) => {
+    const totalSize = results.reduce((sum, result) => sum + result.file_size, 0)
+
+    if (totalSize > 10 * 1024 * 1024) { // >10MB
+      const proceed = await showConfirmDialog(
+        'Bulk Download Warning',
+        <div className="space-y-3">
+          <p>You're about to download <strong>{results.length} files</strong> with a total size of <strong>{(totalSize / (1024 * 1024)).toFixed(1)}MB</strong>.</p>
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-3">
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              ⚠️ This may take some time and consume significant bandwidth.
+            </p>
+          </div>
+          <p>Do you want to continue?</p>
+        </div>,
+        null,
+        {
+          confirmText: 'Download All',
+          cancelText: 'Cancel',
+          type: 'warning'
+        }
+      )
+      if (!proceed) return
+    }
+
+    // Download files sequentially to avoid overwhelming the server
+    for (const result of results) {
+      if (!downloadingFiles.has(result.id)) {
+        await handleDownloadResult(groupId, result.id, result.filename, result.file_size)
+        // Small delay between downloads
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
     }
   }
 
   // Delete conversion group
   const handleDeleteGroup = async (groupId) => {
-    if (!confirm('Are you sure you want to delete this conversion group?')) return
+    const group = conversionGroups.find(g => g.id === groupId)
+    const proceed = await showConfirmDialog(
+      'Delete Conversion Group',
+      <div className="space-y-3">
+        <p>Are you sure you want to delete this conversion group?</p>
+        {group && (
+          <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded border">
+            <p className="font-medium text-gray-900 dark:text-gray-100">{group.name}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Source: {group.individual_file?.name}
+            </p>
+            {group.results && group.results.length > 0 && (
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Contains {group.results.length} result files
+              </p>
+            )}
+          </div>
+        )}
+        <p className="text-red-600 dark:text-red-400 text-sm">
+          ⚠️ This action cannot be undone and will delete all associated files.
+        </p>
+      </div>,
+      null,
+      {
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        type: 'danger'
+      }
+    )
+    if (!proceed) return
 
     try {
       await api.delete(`/conversions/groups/${groupId}`)
@@ -228,7 +400,38 @@ const ConversionManager = () => {
 
   // Delete result file
   const handleDeleteResult = async (resultId) => {
-    if (!confirm('Are you sure you want to delete this result file?')) return
+    const result = selectedGroup?.results?.find(r => r.id === resultId)
+    const proceed = await showConfirmDialog(
+      'Delete Result File',
+      <div className="space-y-3">
+        <p>Are you sure you want to delete this result file?</p>
+        {result && (
+          <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded border">
+            <p className="font-medium text-gray-900 dark:text-gray-100">{result.output_name}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 break-all">
+              {result.filename}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {result.total_records.toLocaleString()} records • {
+                result.file_size > 1024 * 1024
+                  ? `${(result.file_size / (1024 * 1024)).toFixed(1)} MB`
+                  : `${(result.file_size / 1024).toFixed(1)} KB`
+              }
+            </p>
+          </div>
+        )}
+        <p className="text-red-600 dark:text-red-400 text-sm">
+          ⚠️ This action cannot be undone.
+        </p>
+      </div>,
+      null,
+      {
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        type: 'danger'
+      }
+    )
+    if (!proceed) return
 
     try {
       await api.delete(`/conversions/results/${resultId}`)
@@ -627,9 +830,23 @@ const ConversionManager = () => {
                               <h4 className="text-md font-semibold text-gray-800 dark:text-dark-text">
                                 Output Files ({selectedGroup.results.length})
                               </h4>
-                              <span className="text-sm text-gray-600 dark:text-dark-muted">
-                                Total: {selectedGroup.results.reduce((sum, result) => sum + result.total_records, 0).toLocaleString()} records
-                              </span>
+                              <div className="flex items-center space-x-3">
+                                <span className="text-sm text-gray-600 dark:text-dark-muted">
+                                  Total: {selectedGroup.results.reduce((sum, result) => sum + result.total_records, 0).toLocaleString()} records
+                                </span>
+                                <button
+                                  onClick={() => handleDownloadAllResults(selectedGroup.id, selectedGroup.results)}
+                                  disabled={selectedGroup.results.some(result => downloadingFiles.has(result.id))}
+                                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium ${
+                                    selectedGroup.results.some(result => downloadingFiles.has(result.id))
+                                      ? 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500 cursor-not-allowed'
+                                      : 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/40'
+                                  }`}
+                                >
+                                  <Download className="h-4 w-4" />
+                                  <span>Download All</span>
+                                </button>
+                              </div>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -647,9 +864,19 @@ const ConversionManager = () => {
                                         <p className="text-xs text-gray-600 dark:text-dark-muted">
                                           {result.total_records.toLocaleString()} records
                                         </p>
-                                        <p className="text-xs text-gray-600 dark:text-dark-muted">
-                                          {(result.file_size / 1024).toFixed(1)} KB
-                                        </p>
+                                        <div className="flex items-center space-x-2">
+                                          <p className="text-xs text-gray-600 dark:text-dark-muted">
+                                            {result.file_size > 1024 * 1024
+                                              ? `${(result.file_size / (1024 * 1024)).toFixed(1)} MB`
+                                              : `${(result.file_size / 1024).toFixed(1)} KB`
+                                            }
+                                          </p>
+                                          {result.file_size > 3 * 1024 * 1024 && (
+                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400" title="Large file - may take time to download">
+                                              Large
+                                            </span>
+                                          )}
+                                        </div>
                                         <p className="text-xs text-gray-500 dark:text-dark-muted truncate">
                                           {result.filename}
                                         </p>
@@ -659,15 +886,34 @@ const ConversionManager = () => {
 
                                   <div className="flex items-center space-x-2 mt-3">
                                     <button
-                                      onClick={() => handleDownloadResult(selectedGroup.id, result.id, result.filename)}
-                                      className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-900/40 transition-colors text-sm font-medium"
+                                      onClick={() => handleDownloadResult(selectedGroup.id, result.id, result.filename, result.file_size)}
+                                      disabled={downloadingFiles.has(result.id)}
+                                      className={`flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium ${
+                                        downloadingFiles.has(result.id)
+                                          ? 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500 cursor-not-allowed'
+                                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/40'
+                                      }`}
                                     >
-                                      <Download className="h-3 w-3" />
-                                      <span>Download</span>
+                                      {downloadingFiles.has(result.id) ? (
+                                        <>
+                                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-400"></div>
+                                          <span>Downloading...</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Download className="h-3 w-3" />
+                                          <span>Download</span>
+                                        </>
+                                      )}
                                     </button>
                                     <button
                                       onClick={() => handleDeleteResult(result.id)}
-                                      className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                      disabled={downloadingFiles.has(result.id)}
+                                      className={`p-2 rounded-lg transition-colors ${
+                                        downloadingFiles.has(result.id)
+                                          ? 'text-gray-400 cursor-not-allowed'
+                                          : 'text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20'
+                                      }`}
                                       title="Delete File"
                                     >
                                       <Trash2 className="h-3 w-3" />
@@ -732,6 +978,62 @@ const ConversionManager = () => {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Custom Confirmation Dialog */}
+      {confirmDialog.open && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl border border-gray-200/50 dark:border-dark-border max-w-md w-full mx-4 overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-start space-x-4">
+                <div className={`flex-shrink-0 p-2 rounded-full ${
+                  confirmDialog.type === 'danger'
+                    ? 'bg-red-100 dark:bg-red-900/20'
+                    : confirmDialog.type === 'warning'
+                    ? 'bg-amber-100 dark:bg-amber-900/20'
+                    : 'bg-blue-100 dark:bg-blue-900/20'
+                }`}>
+                  {confirmDialog.type === 'danger' ? (
+                    <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                  ) : confirmDialog.type === 'warning' ? (
+                    <AlertCircle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                  ) : (
+                    <AlertCircle className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text mb-3">
+                    {confirmDialog.title}
+                  </h3>
+                  <div className="text-gray-600 dark:text-dark-muted">
+                    {confirmDialog.message}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-dark-hover px-6 py-4 flex items-center justify-end space-x-3">
+              <button
+                onClick={confirmDialog.onCancel}
+                className="px-4 py-2 text-gray-600 dark:text-dark-muted hover:text-gray-800 dark:hover:text-dark-text border border-gray-300 dark:border-dark-border rounded-lg hover:bg-gray-100 dark:hover:bg-dark-card transition-colors"
+              >
+                {confirmDialog.cancelText}
+              </button>
+              <button
+                onClick={confirmDialog.onConfirm}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  confirmDialog.type === 'danger'
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : confirmDialog.type === 'warning'
+                    ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+              >
+                {confirmDialog.confirmText}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
