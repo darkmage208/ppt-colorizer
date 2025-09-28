@@ -110,86 +110,103 @@ class JobPermission(Base):
     job = relationship("Job", back_populates="permissions")
     user = relationship("User")
 
-class RsidConversionFile(Base):
-    __tablename__ = "rsid_conversion_files"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    filename = Column(String)
-    file_path = Column(String)
-    file_size = Column(Integer)
-    is_active = Column(Boolean, default=True)
-    uploaded_by = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    uploader = relationship("User")
-    projects = relationship("RsidProject", back_populates="conversion_file")
-
-class RsidIndividualFile(Base):
-    __tablename__ = "rsid_individual_files"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    filename = Column(String)
-    file_path = Column(String)
-    file_size = Column(Integer)
-    project_id = Column(Integer, ForeignKey("rsid_projects.id"))
-    is_active = Column(Boolean, default=True)
-    uploaded_by = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    uploader = relationship("User")
-    project = relationship("RsidProject", back_populates="individual_files")
-
-class RsidProjectStatus(enum.Enum):
+class ConversionJobStatus(enum.Enum):
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
     ERROR = "error"
 
-class RsidProject(Base):
-    __tablename__ = "rsid_projects"
+class ConversionFile(Base):
+    __tablename__ = "conversion_files"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    conversion_file_id = Column(Integer, ForeignKey("rsid_conversion_files.id"))
-    status = Column(Enum(RsidProjectStatus), default=RsidProjectStatus.PENDING)
+    name = Column(String, index=True, nullable=False)
+    filename = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
+    file_size = Column(Integer)
+    is_active = Column(Boolean, default=True)
+    uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    uploader = relationship("User")
+    jobs = relationship("ConversionJob", back_populates="conversion_file")
+
+class IndividualFile(Base):
+    __tablename__ = "individual_files"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True, nullable=False)
+    filename = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
+    file_size = Column(Integer)
+    is_active = Column(Boolean, default=True)
+    uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    uploader = relationship("User")
+    job_files = relationship("ConversionJobFile", back_populates="individual_file")
+    result_groups = relationship("ResultGroup", back_populates="individual_file")
+
+class ConversionJob(Base):
+    __tablename__ = "conversion_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True, nullable=False)
+    conversion_file_id = Column(Integer, ForeignKey("conversion_files.id"), nullable=False)
+    status = Column(Enum(ConversionJobStatus), default=ConversionJobStatus.PENDING)
     error_message = Column(Text)
     progress = Column(Integer, default=0)
-    created_by = Column(Integer, ForeignKey("users.id"))
+    total_files = Column(Integer, default=0)
+    processed_files = Column(Integer, default=0)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     creator = relationship("User")
-    conversion_file = relationship("RsidConversionFile", back_populates="projects")
-    individual_files = relationship("RsidIndividualFile", back_populates="project", cascade="all, delete-orphan")
-    output_groups = relationship("RsidOutputGroup", back_populates="project", cascade="all, delete-orphan")
+    conversion_file = relationship("ConversionFile", back_populates="jobs")
+    job_files = relationship("ConversionJobFile", back_populates="job", cascade="all, delete-orphan")
+    result_groups = relationship("ResultGroup", back_populates="job", cascade="all, delete-orphan")
 
-class RsidOutputGroup(Base):
-    __tablename__ = "rsid_output_groups"
+class ConversionJobFile(Base):
+    __tablename__ = "conversion_job_files"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)  # Individual file name
-    project_id = Column(Integer, ForeignKey("rsid_projects.id"))
+    job_id = Column(Integer, ForeignKey("conversion_jobs.id"), nullable=False)
+    individual_file_id = Column(Integer, ForeignKey("individual_files.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    job = relationship("ConversionJob", back_populates="job_files")
+    individual_file = relationship("IndividualFile", back_populates="job_files")
+
+class ResultGroup(Base):
+    __tablename__ = "result_groups"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True, nullable=False)  # individual_file_name + date
+    job_id = Column(Integer, ForeignKey("conversion_jobs.id"), nullable=False)
+    individual_file_id = Column(Integer, ForeignKey("individual_files.id"), nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    project = relationship("RsidProject", back_populates="output_groups")
-    output_files = relationship("RsidOutputFile", back_populates="group", cascade="all, delete-orphan")
+    job = relationship("ConversionJob", back_populates="result_groups")
+    individual_file = relationship("IndividualFile", back_populates="result_groups")
+    result_files = relationship("ResultFile", back_populates="group", cascade="all, delete-orphan")
 
-class RsidOutputFile(Base):
-    __tablename__ = "rsid_output_files"
+class ResultFile(Base):
+    __tablename__ = "result_files"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)  # Output column name
-    filename = Column(String)
-    file_path = Column(String)
+    name = Column(String, index=True, nullable=False)  # column name or description
+    filename = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
     file_size = Column(Integer)
-    group_id = Column(Integer, ForeignKey("rsid_output_groups.id"))
+    group_id = Column(Integer, ForeignKey("result_groups.id"), nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    group = relationship("RsidOutputGroup", back_populates="output_files")
+    group = relationship("ResultGroup", back_populates="result_files")
 
 class Job(Base):
     __tablename__ = "jobs"

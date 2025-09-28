@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
-from .models import UserRole, JobStatus, ConversionStatus, RsidProjectStatus
+from .models import UserRole, JobStatus, ConversionStatus, ConversionJobStatus
 
 class UserBase(BaseModel):
     username: str
@@ -162,56 +162,59 @@ class VcfConversionWithDetails(VcfConversion):
     class Config:
         from_attributes = True
 
-# RsID Conversion Schemas
-class RsidConversionFileBase(BaseModel):
+# New Conversion System Schemas
+class ConversionFileBase(BaseModel):
     name: str
 
-class RsidConversionFileCreate(RsidConversionFileBase):
+class ConversionFileCreate(ConversionFileBase):
     pass
 
-class RsidConversionFile(RsidConversionFileBase):
+class ConversionFile(ConversionFileBase):
     id: int
     filename: str
     file_path: str
-    file_size: int
+    file_size: Optional[int] = None
     is_active: bool
     uploaded_by: int
     created_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
 
-class RsidIndividualFileBase(BaseModel):
+class IndividualFileBase(BaseModel):
     name: str
 
-class RsidIndividualFileCreate(RsidIndividualFileBase):
+class IndividualFileCreate(IndividualFileBase):
     pass
 
-class RsidIndividualFile(RsidIndividualFileBase):
+class IndividualFile(IndividualFileBase):
     id: int
     filename: str
     file_path: str
-    file_size: int
-    project_id: int
+    file_size: Optional[int] = None
     is_active: bool
     uploaded_by: int
     created_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
 
-class RsidProjectBase(BaseModel):
+class ConversionJobBase(BaseModel):
     name: str
     conversion_file_id: int
 
-class RsidProjectCreate(RsidProjectBase):
-    pass
+class ConversionJobCreate(ConversionJobBase):
+    individual_file_ids: List[int]
 
-class RsidProject(RsidProjectBase):
+class ConversionJob(ConversionJobBase):
     id: int
-    status: RsidProjectStatus
+    status: ConversionJobStatus
     error_message: Optional[str] = None
     progress: int
+    total_files: int
+    processed_files: int
     created_by: int
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -219,14 +222,14 @@ class RsidProject(RsidProjectBase):
     class Config:
         from_attributes = True
 
-class RsidOutputFileBase(BaseModel):
+class ResultFileBase(BaseModel):
     name: str
 
-class RsidOutputFile(RsidOutputFileBase):
+class ResultFile(ResultFileBase):
     id: int
     filename: str
     file_path: str
-    file_size: int
+    file_size: Optional[int] = None
     group_id: int
     is_active: bool
     created_at: datetime
@@ -234,23 +237,23 @@ class RsidOutputFile(RsidOutputFileBase):
     class Config:
         from_attributes = True
 
-class RsidOutputGroupBase(BaseModel):
+class ResultGroupBase(BaseModel):
     name: str
 
-class RsidOutputGroup(RsidOutputGroupBase):
+class ResultGroup(ResultGroupBase):
     id: int
-    project_id: int
+    job_id: int
+    individual_file_id: int
     is_active: bool
     created_at: datetime
-    output_files: List[RsidOutputFile] = []
+    result_files: List[ResultFile] = []
 
     class Config:
         from_attributes = True
 
-class RsidProjectWithDetails(RsidProject):
-    conversion_file: RsidConversionFile
-    individual_files: List[RsidIndividualFile] = []
-    output_groups: List[RsidOutputGroup] = []
+class ConversionJobWithDetails(ConversionJob):
+    conversion_file: ConversionFile
+    result_groups: List[ResultGroup] = []
     creator: User
 
     class Config:

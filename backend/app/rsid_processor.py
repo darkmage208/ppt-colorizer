@@ -51,18 +51,18 @@ class RsidProcessor:
     def _parse_individual_file_header(self, file_path: str) -> List[str]:
         """
         Parse the header of an individual file to get column names.
-        Returns list of column names, excluding the first 3 columns (SNP, Chr, Position).
+        Returns list of column names, excluding the first 3 columns (SNP Name, Chr, Position).
         """
         with open(file_path, 'r', encoding='utf-8') as file:
             header = file.readline().strip()
             columns = header.split('\t')
 
             # Validate header format
-            if len(columns) < 4 or columns[0] != 'SNP' or columns[1] != 'Name' or columns[2] != 'Chr' or columns[3] != 'Position':
-                raise ValueError("Invalid individual file format. Expected header: SNP\tName\tChr\tPosition\t[OUTPUT1]\t[OUTPUT2]...")
+            if len(columns) < 4 or columns[0] != 'SNP Name' or columns[1] != 'Chr' or columns[2] != 'Position':
+                raise ValueError("Invalid individual file format. Expected header: SNP Name\tChr\tPosition\t[OUTPUT1]\t[OUTPUT2]...")
 
-            # Return output columns (skip first 4: SNP, Name, Chr, Position)
-            return columns[4:]
+            # Return output columns (skip first 3: SNP Name, Chr, Position)
+            return columns[3:]
 
     def _split_rsids(self, rsid_str: str) -> List[str]:
         """
@@ -83,7 +83,7 @@ class RsidProcessor:
         output_columns: List[str],
         output_dir: str,
         individual_name: str,
-        project_id: int = None,
+        job_id: int = None,
         db_session = None
     ) -> List[Dict[str, str]]:
         """
@@ -141,9 +141,9 @@ class RsidProcessor:
 
                     # Extract basic information
                     snp_name = parts[0].strip()
-                    name = parts[1].strip()
-                    chromosome = parts[2].strip()
-                    position = parts[3].strip()
+                    name = parts[0].strip()  # SNP Name is the same column
+                    chromosome = parts[1].strip()
+                    position = parts[2].strip()
 
                     # Look up RsID in conversion mapping
                     rsid_str = conversion_mapping.get(name)
@@ -157,7 +157,7 @@ class RsidProcessor:
 
                     # Process each output column
                     for i, output_col in enumerate(output_columns):
-                        col_index = 4 + i  # Skip first 4 columns
+                        col_index = 3 + i  # Skip first 3 columns (SNP Name, Chr, Position)
                         if col_index >= len(parts):
                             continue
 
@@ -175,14 +175,15 @@ class RsidProcessor:
 
                     # Update progress
                     if processed_rows % self.PROGRESS_UPDATE_INTERVAL == 0:
-                        self._update_project_progress(project_id, processed_rows, total_rows, db_session)
+                        self._update_job_progress(job_id, processed_rows, total_rows, db_session)
 
             # Final progress update
-            self._update_project_progress(project_id, processed_rows, total_rows, db_session)
+            self._update_job_progress(job_id, processed_rows, total_rows, db_session)
 
         finally:
-            # Close all output files
+            # Flush and close all output files
             for handle in output_file_handles.values():
+                handle.flush()
                 handle.close()
 
         # Update file sizes
@@ -202,28 +203,28 @@ class RsidProcessor:
                 count += 1
         return count
 
-    def _update_project_progress(self, project_id: int, processed: int, total: int, db_session):
-        """Update project progress in database."""
-        if db_session and project_id:
-            from .models import RsidProject
-            project = db_session.query(RsidProject).filter(RsidProject.id == project_id).first()
-            if project:
-                project.progress = int((processed / total) * 100) if total > 0 else 0
+    def _update_job_progress(self, job_id: int, processed: int, total: int, db_session):
+        """Update job progress in database."""
+        if db_session and job_id:
+            from .models import ConversionJob
+            job = db_session.query(ConversionJob).filter(ConversionJob.id == job_id).first()
+            if job:
+                job.progress = int((processed / total) * 100) if total > 0 else 0
                 db_session.commit()
 
-    def process_project(
+    def process_job(
         self,
-        project_id: int,
+        job_id: int,
         conversion_file_path: str,
-        individual_files: List[Dict[str, str]],  # List of {file_path, name}
+        individual_files: List[Dict[str, str]],  # List of {id, file_path, name}
         output_base_dir: str,
         db_session = None
     ) -> bool:
         """
-        Process an entire RsID conversion project.
+        Process an entire conversion job.
 
         Args:
-            project_id: Project ID for progress tracking
+            job_id: Job ID for progress tracking
             conversion_file_path: Path to conversion file (Name -> RsID mapping)
             individual_files: List of individual file information
             output_base_dir: Base directory for output files
@@ -233,12 +234,12 @@ class RsidProcessor:
             True if processing successful, False otherwise
         """
         try:
-            # Update project status
-            if db_session and project_id:
-                from .models import RsidProject, RsidProjectStatus
-                project = db_session.query(RsidProject).filter(RsidProject.id == project_id).first()
-                if project:
-                    project.status = RsidProjectStatus.PROCESSING
+            # Update job status
+            if db_session and job_id:
+                from .models import ConversionJob, ConversionJobStatus
+                job = db_session.query(ConversionJob).filter(ConversionJob.id == job_id).first()
+                if job:
+                    job.status = ConversionJobStatus.PROCESSING
                     db_session.commit()
 
             # Parse conversion file
@@ -248,9 +249,10 @@ class RsidProcessor:
                 raise ValueError("No valid RsID mappings found in conversion file")
 
             # Process each individual file
-            all_output_groups = []
+            all_result_groups = []
 
             for individual_file in individual_files:
+                file_id = individual_file['id']
                 file_path = individual_file['file_path']
                 file_name = individual_file['name']
 
@@ -260,43 +262,46 @@ class RsidProcessor:
                 if not output_columns:
                     continue
 
-                # Create output directory for this individual
-                individual_output_dir = os.path.join(output_base_dir, f"individual_{file_name}")
+                # Create output directory for this group (same level structure)
+                current_date = datetime.now().strftime("%Y%m%d")
+                group_name = f"{file_name}_{current_date}"
+                individual_output_dir = os.path.join(output_base_dir, group_name)
 
                 # Process individual file
-                output_files_info = self._process_individual_file(
+                result_files_info = self._process_individual_file(
                     file_path,
                     conversion_mapping,
                     output_columns,
                     individual_output_dir,
                     file_name,
-                    project_id,
+                    job_id,
                     db_session
                 )
 
-                all_output_groups.append({
+                all_result_groups.append({
+                    'individual_file_id': file_id,
                     'individual_name': file_name,
-                    'output_files': output_files_info
+                    'result_files': result_files_info
                 })
 
-            # Update project status to completed
-            if db_session and project_id:
-                project = db_session.query(RsidProject).filter(RsidProject.id == project_id).first()
-                if project:
-                    project.status = RsidProjectStatus.COMPLETED
-                    project.progress = 100
+            # Update job status to completed
+            if db_session and job_id:
+                job = db_session.query(ConversionJob).filter(ConversionJob.id == job_id).first()
+                if job:
+                    job.status = ConversionJobStatus.COMPLETED
+                    job.progress = 100
                     db_session.commit()
 
-            return True, all_output_groups
+            return True, all_result_groups
 
         except Exception as e:
-            # Update project status to error
-            if db_session and project_id:
-                from .models import RsidProject, RsidProjectStatus
-                project = db_session.query(RsidProject).filter(RsidProject.id == project_id).first()
-                if project:
-                    project.status = RsidProjectStatus.ERROR
-                    project.error_message = str(e)
+            # Update job status to error
+            if db_session and job_id:
+                from .models import ConversionJob, ConversionJobStatus
+                job = db_session.query(ConversionJob).filter(ConversionJob.id == job_id).first()
+                if job:
+                    job.status = ConversionJobStatus.ERROR
+                    job.error_message = str(e)
                     db_session.commit()
 
             print(f"Error during RsID conversion: {str(e)}")
@@ -389,16 +394,16 @@ class RsidProcessor:
 
                 columns = header.split('\t')
 
-                if len(columns) < 5:  # SNP, Name, Chr, Position + at least 1 output column
-                    result['error'] = "Invalid header format. Expected: SNP\\tName\\tChr\\tPosition\\t[OUTPUT1]..."
+                if len(columns) < 4:  # SNP Name, Chr, Position + at least 1 output column
+                    result['error'] = "Invalid header format. Expected: SNP Name\\tChr\\tPosition\\t[OUTPUT1]..."
                     return result
 
-                if columns[0] != 'SNP' or columns[1] != 'Name' or columns[2] != 'Chr' or columns[3] != 'Position':
-                    result['error'] = "Invalid header format. Expected: SNP\\tName\\tChr\\tPosition\\t[OUTPUT1]..."
+                if columns[0] != 'SNP Name' or columns[1] != 'Chr' or columns[2] != 'Position':
+                    result['error'] = "Invalid header format. Expected: SNP Name\\tChr\\tPosition\\t[OUTPUT1]..."
                     return result
 
                 # Extract output columns
-                result['output_columns'] = columns[4:]
+                result['output_columns'] = columns[3:]
 
                 # Count data lines
                 for line in file:
