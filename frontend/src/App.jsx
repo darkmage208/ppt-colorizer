@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import Jobs from './pages/Jobs'
 import VcfManager from './pages/VcfManager'
+import Conversion from './pages/Conversion'
 
 function App() {
   return (
@@ -38,6 +39,11 @@ function App() {
               <Route path="/vcf" element={
                 <ProtectedRoute requireSuperAdmin>
                   <VcfManager />
+                </ProtectedRoute>
+              } />
+              <Route path="/conversion" element={
+                <ProtectedRoute requireSuperAdmin>
+                  <Conversion />
                 </ProtectedRoute>
               } />
             </Routes>

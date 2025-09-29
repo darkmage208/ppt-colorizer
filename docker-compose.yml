@@ -93,7 +93,7 @@ services:
     volumes:
       - ./backend:/app
       - /app/__pycache__
-    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=8 -Q ppt_processing
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=8 -Q ppt_processing,rsid_processing
 
   frontend:
     build:

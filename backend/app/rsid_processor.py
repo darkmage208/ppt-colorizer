@@ -84,7 +84,9 @@ class RsidProcessor:
         output_dir: str,
         individual_name: str,
         job_id: int = None,
-        db_session = None
+        db_session = None,
+        current_file_index: int = 0,
+        total_files: int = 1
     ) -> List[Dict[str, str]]:
         """
         Process a single individual file and generate output files for each output column.
@@ -101,9 +103,9 @@ class RsidProcessor:
 
         try:
             for output_col in output_columns:
-                # Generate output filename
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                output_filename = f"{individual_name}_{output_col}_{timestamp}.txt"
+                # Generate output filename using individualfilename+date+time format
+                datetime_stamp = datetime.now().strftime('%Y%m%d%H%M%S')
+                output_filename = f"{individual_name}_{output_col}_{datetime_stamp}.txt"
                 output_file_path = os.path.join(output_dir, output_filename)
 
                 # Open output file and create CSV writer
@@ -175,10 +177,12 @@ class RsidProcessor:
 
                     # Update progress
                     if processed_rows % self.PROGRESS_UPDATE_INTERVAL == 0:
-                        self._update_job_progress(job_id, processed_rows, total_rows, db_session)
+                        file_progress = (processed_rows / total_rows) * 100 if total_rows > 0 else 100
+                        self._update_job_progress(job_id, current_file_index, total_files, file_progress, db_session)
 
-            # Final progress update
-            self._update_job_progress(job_id, processed_rows, total_rows, db_session)
+            # Final progress update for this file
+            file_progress = 100  # File is complete
+            self._update_job_progress(job_id, current_file_index, total_files, file_progress, db_session)
 
         finally:
             # Flush and close all output files
@@ -203,13 +207,18 @@ class RsidProcessor:
                 count += 1
         return count
 
-    def _update_job_progress(self, job_id: int, processed: int, total: int, db_session):
-        """Update job progress in database."""
+    def _update_job_progress(self, job_id: int, current_file_index: int, total_files: int, file_progress: float, db_session):
+        """Update job progress in database based on overall job progress."""
         if db_session and job_id:
             from .models import ConversionJob
             job = db_session.query(ConversionJob).filter(ConversionJob.id == job_id).first()
             if job:
-                job.progress = int((processed / total) * 100) if total > 0 else 0
+                # Calculate overall progress: completed files + current file progress
+                completed_files_progress = (current_file_index / total_files) * 100
+                current_file_contribution = (file_progress / total_files)
+                overall_progress = completed_files_progress + current_file_contribution
+
+                job.progress = int(min(100, max(0, overall_progress)))
                 db_session.commit()
 
     def process_job(
@@ -250,8 +259,9 @@ class RsidProcessor:
 
             # Process each individual file
             all_result_groups = []
+            total_individual_files = len(individual_files)
 
-            for individual_file in individual_files:
+            for file_index, individual_file in enumerate(individual_files):
                 file_id = individual_file['id']
                 file_path = individual_file['file_path']
                 file_name = individual_file['name']
@@ -262,9 +272,9 @@ class RsidProcessor:
                 if not output_columns:
                     continue
 
-                # Create output directory for this group (same level structure)
-                current_date = datetime.now().strftime("%Y%m%d")
-                group_name = f"{file_name}_{current_date}"
+                # Create output directory for this group using individualfilename+date+time format
+                current_datetime = datetime.now().strftime("%Y%m%d%H%M%S")
+                group_name = f"{file_name}_{current_datetime}"
                 individual_output_dir = os.path.join(output_base_dir, group_name)
 
                 # Process individual file
@@ -275,7 +285,9 @@ class RsidProcessor:
                     individual_output_dir,
                     file_name,
                     job_id,
-                    db_session
+                    db_session,
+                    file_index,
+                    total_individual_files
                 )
 
                 all_result_groups.append({

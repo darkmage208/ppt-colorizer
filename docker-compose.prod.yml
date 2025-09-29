@@ -98,7 +98,7 @@ services:
           memory: 4G
         reservations:
           memory: 2G
-    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=1 -Q ppt_processing --pool=prefork
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=1 -Q ppt_processing,rsid_processing --pool=prefork
 
   flower:
     build: ./backend

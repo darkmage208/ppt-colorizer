@@ -1,6 +1,6 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { LogOut, Settings, User, LayoutDashboard, Briefcase, Menu, X, FileText } from 'lucide-react'
+import { LogOut, Settings, User, LayoutDashboard, Briefcase, Menu, X, FileText, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 
 const Navbar = () => {
@@ -74,17 +74,30 @@ const Navbar = () => {
             )}
 
             {user.role === 'superadmin' && (
-              <Link
-                to="/vcf"
-                className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  isActiveRoute('/vcf')
-                    ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-md dark:shadow-red-500/20'
-                    : 'text-gray-600 dark:text-dark-muted hover:bg-red-50 dark:hover:bg-dark-hover hover:text-red-600 dark:hover:text-red-400'
-                }`}
-              >
-                <FileText className="h-4 w-4" />
-                <span>VCF Manager</span>
-              </Link>
+              <>
+                <Link
+                  to="/vcf"
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    isActiveRoute('/vcf')
+                      ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-md dark:shadow-red-500/20'
+                      : 'text-gray-600 dark:text-dark-muted hover:bg-red-50 dark:hover:bg-dark-hover hover:text-red-600 dark:hover:text-red-400'
+                  }`}
+                >
+                  <FileText className="h-4 w-4" />
+                  <span>VCF Manager</span>
+                </Link>
+                <Link
+                  to="/conversion"
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    isActiveRoute('/conversion')
+                      ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-md dark:shadow-orange-500/20'
+                      : 'text-gray-600 dark:text-dark-muted hover:bg-orange-50 dark:hover:bg-dark-hover hover:text-orange-600 dark:hover:text-orange-400'
+                  }`}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span>RSID Conversion</span>
+                </Link>
+              </>
             )}
             
             {/* User section for desktop */}
@@ -194,18 +207,32 @@ const Navbar = () => {
               )}
 
               {user.role === 'superadmin' && (
-                <Link
-                  to="/vcf"
-                  onClick={() => setIsMenuOpen(false)}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200 ${
-                    isActiveRoute('/vcf')
-                      ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-md'
-                      : 'text-gray-600 dark:text-dark-muted hover:bg-gray-50 dark:hover:bg-dark-hover'
-                  }`}
-                >
-                  <FileText className="h-5 w-5" />
-                  <span>VCF Manager</span>
-                </Link>
+                <>
+                  <Link
+                    to="/vcf"
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200 ${
+                      isActiveRoute('/vcf')
+                        ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-md'
+                        : 'text-gray-600 dark:text-dark-muted hover:bg-gray-50 dark:hover:bg-dark-hover'
+                    }`}
+                  >
+                    <FileText className="h-5 w-5" />
+                    <span>VCF Manager</span>
+                  </Link>
+                  <Link
+                    to="/conversion"
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200 ${
+                      isActiveRoute('/conversion')
+                        ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-md'
+                        : 'text-gray-600 dark:text-dark-muted hover:bg-gray-50 dark:hover:bg-dark-hover'
+                    }`}
+                  >
+                    <RefreshCw className="h-5 w-5" />
+                    <span>RSID Conversion</span>
+                  </Link>
+                </>
               )}
               
               {/* Mobile logout button */}

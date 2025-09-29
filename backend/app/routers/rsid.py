@@ -720,9 +720,9 @@ def process_conversion_job(job_id: int):
             processed_count = 0
             # Create result groups and files in database
             for group_data in result_groups_data:
-                # Create result group with individual_file_name + date
-                current_date = datetime.now().strftime("%Y%m%d")
-                group_name = f"{group_data['individual_name']}_{current_date}"
+                # Create result group with individual_file_name + date + time
+                current_datetime = datetime.now().strftime("%Y%m%d%H%M%S")
+                group_name = f"{group_data['individual_name']}_{current_datetime}"
 
                 result_group = ResultGroup(
                     name=group_name,
@@ -745,9 +745,8 @@ def process_conversion_job(job_id: int):
                     db.add(result_file)
 
                 processed_count += 1
-                # Update progress
+                # Update processed files count only (progress is handled by processor)
                 job.processed_files = processed_count
-                job.progress = int((processed_count / job.total_files) * 100)
 
                 db.commit()
 
