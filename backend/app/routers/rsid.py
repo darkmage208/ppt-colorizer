@@ -439,6 +439,39 @@ def delete_conversion_job(
 
 # === RESULT GROUPS ENDPOINTS ===
 
+@router.get("/result-groups", response_model=List[ResultGroupSchema])
+def list_all_result_groups(
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(require_superadmin),
+    db: Session = Depends(get_db)
+):
+    """List all result groups across all jobs (SuperAdmin only)"""
+    groups = db.query(ResultGroup).filter(
+        ResultGroup.is_active == True
+    ).order_by(ResultGroup.created_at.desc()).offset(skip).limit(limit).all()
+    return groups
+
+@router.get("/result-groups/{group_id}", response_model=ResultGroupSchema)
+def get_result_group(
+    group_id: int,
+    current_user: User = Depends(require_superadmin),
+    db: Session = Depends(get_db)
+):
+    """Get a specific result group with its files (SuperAdmin only)"""
+    group = db.query(ResultGroup).filter(
+        ResultGroup.id == group_id,
+        ResultGroup.is_active == True
+    ).first()
+
+    if not group:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Result group not found"
+        )
+
+    return group
+
 @router.get("/conversion-jobs/{job_id}/result-groups", response_model=List[ResultGroupSchema])
 def list_result_groups(
     job_id: int,

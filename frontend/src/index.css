@@ -7,3 +7,93 @@
     @apply dark:bg-dark-bg dark:text-dark-text;
   }
 }
+
+@layer utilities {
+  /* Custom Professional Scrollbar Styles */
+  .scrollbar-modern {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(156, 163, 175, 0.6) transparent;
+  }
+
+  .scrollbar-modern::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-modern::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 10px;
+  }
+
+  .scrollbar-modern::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.6);
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background-clip: content-box;
+    transition: all 0.3s ease;
+  }
+
+  .scrollbar-modern::-webkit-scrollbar-thumb:hover {
+    background: rgba(107, 114, 128, 0.8);
+  }
+
+  .scrollbar-modern::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* Dark theme scrollbar */
+  .dark .scrollbar-modern {
+    scrollbar-color: rgba(107, 114, 128, 0.5) transparent;
+  }
+
+  .dark .scrollbar-modern::-webkit-scrollbar-thumb {
+    background: rgba(107, 114, 128, 0.5);
+  }
+
+  .dark .scrollbar-modern::-webkit-scrollbar-thumb:hover {
+    background: rgba(156, 163, 175, 0.7);
+  }
+
+  /* Ultra-thin professional scrollbar variant */
+  .scrollbar-ultra-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
+  }
+
+  .scrollbar-ultra-thin::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .scrollbar-ultra-thin::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 8px;
+  }
+
+  .scrollbar-ultra-thin::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.4);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+  }
+
+  .scrollbar-ultra-thin::-webkit-scrollbar-thumb:hover {
+    background: rgba(107, 114, 128, 0.7);
+  }
+
+  .scrollbar-ultra-thin::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* Dark theme ultra-thin scrollbar */
+  .dark .scrollbar-ultra-thin {
+    scrollbar-color: rgba(107, 114, 128, 0.4) transparent;
+  }
+
+  .dark .scrollbar-ultra-thin::-webkit-scrollbar-thumb {
+    background: rgba(107, 114, 128, 0.4);
+  }
+
+  .dark .scrollbar-ultra-thin::-webkit-scrollbar-thumb:hover {
+    background: rgba(156, 163, 175, 0.6);
+  }
+}
