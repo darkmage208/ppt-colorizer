@@ -19,7 +19,7 @@ depends_on = None
 def upgrade() -> None:
     # Create conversionjobstatus enum type first
     conversionjobstatus_enum = sa.Enum('pending', 'processing', 'completed', 'error', name='conversionjobstatus')
-    conversionjobstatus_enum.create(op.get_bind())
+    # conversionjobstatus_enum.create(op.get_bind())
 
     # Create conversion_files table (independent file management)
     op.create_table('conversion_files',
