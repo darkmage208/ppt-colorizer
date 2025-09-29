@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '002_add_vcf_tables'
-down_revision = 'f577832ba658'
+revision = '003'
+down_revision = '002'
 branch_labels = None
 depends_on = None
 
