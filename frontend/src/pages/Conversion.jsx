@@ -862,22 +862,30 @@ const Conversion = () => {
 
             <div className="space-y-6">
 
-              {/* File Selection */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* File Selection - Vertical Layout */}
+              <div className="space-y-8">
                 {/* Conversion File Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Select Conversion Mapping File (Required)
-                  </label>
+                <div className="bg-white/60 dark:bg-dark-card/60 backdrop-blur-sm rounded-xl border border-gray-200/50 dark:border-dark-border/50 p-6">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg">
+                      <FileText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-dark-text">
+                        Select Conversion Mapping File
+                      </h4>
+                      <p className="text-sm text-gray-600 dark:text-dark-muted">Choose the mapping file for conversion (Required)</p>
+                    </div>
+                  </div>
                   <div className="space-y-3">
                     {conversionFiles.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                      <div className="text-center py-8 text-gray-500 dark:text-dark-muted">
                         <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400 dark:text-gray-600" />
                         <p className="text-sm">No conversion files available</p>
                         <p className="text-xs mt-1">Upload one in the File Management tab</p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 gap-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                         {conversionFiles.map((file) => (
                           <label key={file.id} className={`relative cursor-pointer rounded-xl border-2 p-5 transition-all duration-300 group ${
                             selectedConversionFile === file.id
@@ -926,70 +934,73 @@ const Conversion = () => {
                 </div>
 
                 {/* Individual Files Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Select Individual Data Files (Required)
-                  </label>
-                  <div className="space-y-3">
-                    {individualFiles.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                        <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400 dark:text-gray-600" />
-                        <p className="text-sm">No individual files available</p>
-                        <p className="text-xs mt-1">Upload some in the File Management tab</p>
+                <div className="bg-white/60 dark:bg-dark-card/60 backdrop-blur-sm rounded-xl border border-gray-200/50 dark:border-dark-border/50 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text mb-4 flex items-center">
+                    <FileText className="h-5 w-5 mr-2 text-emerald-600 dark:text-emerald-400" />
+                    Select Individual Data Files
+                    <span className="ml-2 text-sm font-normal text-red-500">*</span>
+                  </h3>
+
+                  {individualFiles.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                      <div className="bg-gray-100 dark:bg-gray-700/50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                        <FileText className="h-8 w-8 text-gray-400 dark:text-gray-600" />
                       </div>
-                    ) : (
-                      <div className="grid grid-cols-1 gap-3 h-80 overflow-y-auto scrollbar-modern">
-                        {individualFiles.map((file) => (
-                          <label key={file.id} className={`relative cursor-pointer rounded-xl border-2 p-5 transition-all duration-300 group ${
-                            selectedIndividualFiles.includes(file.id)
-                              ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-900/30 shadow-lg shadow-emerald-500/20'
-                              : 'border-gray-200/60 dark:border-dark-border/60 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-white/80 dark:hover:bg-dark-card/50 hover:shadow-md'
-                          }`}>
-                            <input
-                              type="checkbox"
-                              value={file.id}
-                              checked={selectedIndividualFiles.includes(file.id)}
-                              onChange={(e) => {
-                                const fileId = parseInt(e.target.value)
-                                if (e.target.checked) {
-                                  setSelectedIndividualFiles(prev => [...prev, fileId])
-                                } else {
-                                  setSelectedIndividualFiles(prev => prev.filter(id => id !== fileId))
-                                }
-                              }}
-                              className="sr-only"
-                            />
-                            <div className="flex items-center space-x-4">
-                              <div className={`p-3 rounded-xl transition-all duration-300 ${
+                      <p className="text-base font-medium">No individual files available</p>
+                      <p className="text-sm mt-1 text-gray-400">Upload some files in the File Management tab</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-h-80 overflow-y-auto scrollbar-modern">
+                      {individualFiles.map((file) => (
+                        <label key={file.id} className={`relative cursor-pointer rounded-xl border-2 p-5 transition-all duration-300 group ${
+                          selectedIndividualFiles.includes(file.id)
+                            ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-900/30 shadow-lg shadow-emerald-500/20'
+                            : 'border-gray-200/60 dark:border-dark-border/60 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-white/80 dark:hover:bg-dark-card/50 hover:shadow-md'
+                        }`}>
+                          <input
+                            type="checkbox"
+                            value={file.id}
+                            checked={selectedIndividualFiles.includes(file.id)}
+                            onChange={(e) => {
+                              const fileId = parseInt(e.target.value)
+                              if (e.target.checked) {
+                                setSelectedIndividualFiles(prev => [...prev, fileId])
+                              } else {
+                                setSelectedIndividualFiles(prev => prev.filter(id => id !== fileId))
+                              }
+                            }}
+                            className="sr-only"
+                          />
+                          <div className="flex items-center space-x-4">
+                            <div className={`p-3 rounded-xl transition-all duration-300 ${
+                              selectedIndividualFiles.includes(file.id)
+                                ? 'bg-emerald-100 dark:bg-emerald-800/50 shadow-md'
+                                : 'bg-gray-100 dark:bg-gray-700/50 group-hover:bg-gray-200 dark:group-hover:bg-gray-600/50'
+                            }`}>
+                              <FileText className={`h-6 w-6 transition-colors duration-300 ${
                                 selectedIndividualFiles.includes(file.id)
-                                  ? 'bg-emerald-100 dark:bg-emerald-800/50 shadow-md'
-                                  : 'bg-gray-100 dark:bg-gray-700/50 group-hover:bg-gray-200 dark:group-hover:bg-gray-600/50'
-                              }`}>
-                                <FileText className={`h-6 w-6 transition-colors duration-300 ${
-                                  selectedIndividualFiles.includes(file.id)
-                                    ? 'text-emerald-600 dark:text-emerald-400'
-                                    : 'text-gray-600 dark:text-gray-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400'
-                                }`} />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h4 className="text-base font-semibold text-gray-900 dark:text-dark-text truncate" title={file.name}>
-                                  {file.name}
-                                </h4>
-                                <p className="text-sm text-gray-600 dark:text-dark-muted mt-1">
-                                  {formatFileSize(file.file_size)} • Individual data
-                                </p>
-                              </div>
-                              {selectedIndividualFiles.includes(file.id) && (
-                                <div className="text-emerald-600 dark:text-emerald-400">
-                                  <CheckCircle className="h-6 w-6" />
-                                </div>
-                              )}
+                                  ? 'text-emerald-600 dark:text-emerald-400'
+                                  : 'text-gray-600 dark:text-gray-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400'
+                              }`} />
                             </div>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-base font-semibold text-gray-900 dark:text-dark-text truncate" title={file.name}>
+                                {file.name}
+                              </h4>
+                              <p className="text-sm text-gray-600 dark:text-dark-muted mt-1">
+                                {formatFileSize(file.file_size)} • Individual data
+                              </p>
+                            </div>
+                            {selectedIndividualFiles.includes(file.id) && (
+                              <div className="text-emerald-600 dark:text-emerald-400">
+                                <CheckCircle className="h-6 w-6" />
+                              </div>
+                            )}
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
