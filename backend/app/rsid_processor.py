@@ -1,8 +1,9 @@
 import os
 import csv
-from typing import Dict, List, Optional, TextIO
+from typing import Dict, List, Optional, TextIO, Set, Tuple
 from datetime import datetime
 import re
+import gc  # For garbage collection to manage memory
 
 
 class RsidProcessor:
@@ -14,15 +15,18 @@ class RsidProcessor:
 
     def __init__(self):
         self.BUFFER_SIZE = 8192  # 8KB buffer for file reading
-        self.PROGRESS_UPDATE_INTERVAL = 100  # Update progress every 100 rows
+        self.PROGRESS_UPDATE_INTERVAL = 1000  # Update progress every 1000 rows for better performance
+        self.CHUNK_SIZE = 10000  # Process files in chunks to manage memory
 
     def _parse_conversion_file(self, file_path: str) -> Dict[str, str]:
         """
         Parse the conversion file and create a mapping from Name to RsID.
         Returns a dictionary where key=Name and value=RsID.
         Skips entries where RsID is '.' (empty).
+        Uses memory-efficient processing for large conversion files (300k+ rows).
         """
         name_to_rsid = {}
+        processed_lines = 0
 
         with open(file_path, 'r', encoding='utf-8') as file:
             # Read header line
@@ -30,23 +34,46 @@ class RsidProcessor:
             if not header.startswith('Name'):
                 raise ValueError("Invalid conversion file format. Expected header: Name\tRsID")
 
-            # Process data lines
-            for line_num, line in enumerate(file, start=2):
+            # Process data lines in chunks for memory efficiency
+            chunk_buffer = []
+
+            for line in file:
                 line = line.strip()
                 if not line:
                     continue
 
-                parts = line.split('\t')
-                if len(parts) != 2:
-                    continue
+                chunk_buffer.append(line)
 
-                name, rsid = parts[0].strip(), parts[1].strip()
+                # Process chunk when buffer is full
+                if len(chunk_buffer) >= self.CHUNK_SIZE:
+                    self._process_conversion_chunk(chunk_buffer, name_to_rsid)
+                    processed_lines += len(chunk_buffer)
+                    chunk_buffer = []
 
-                # Skip entries with empty RsID (marked as '.')
-                if rsid != '.' and rsid:
-                    name_to_rsid[name] = rsid
+                    # Trigger garbage collection periodically for large files
+                    if processed_lines % (self.CHUNK_SIZE * 10) == 0:
+                        gc.collect()
+
+            # Process remaining lines in buffer
+            if chunk_buffer:
+                self._process_conversion_chunk(chunk_buffer, name_to_rsid)
 
         return name_to_rsid
+
+    def _process_conversion_chunk(self, chunk_buffer: List[str], name_to_rsid: Dict[str, str]) -> None:
+        """
+        Process a chunk of conversion file lines.
+        """
+        for line in chunk_buffer:
+            parts = line.split('\t')
+            if len(parts) != 2:
+                continue
+
+            name, rsid = parts[0].strip(), parts[1].strip()
+
+            # Skip entries with empty RsID (marked as '.')
+            if rsid != '.' and rsid:
+                name_to_rsid[name] = rsid
 
     def _parse_individual_file_header(self, file_path: str) -> List[str]:
         """
@@ -63,6 +90,21 @@ class RsidProcessor:
 
             # Return output columns (skip first 3: SNP Name, Chr, Position)
             return columns[3:]
+
+    def _is_rsid_format(self, snp_name: str) -> bool:
+        """
+        Check if SNP name is already in rs000 format.
+        Returns True if the name starts with 'rs' followed by numbers.
+        """
+        return bool(re.match(r'^rs\d+$', snp_name.strip()))
+
+    def _extract_rs_number(self, rsid: str) -> int:
+        """
+        Extract numeric part from rsID for sorting.
+        Example: "rs123456" -> 123456
+        """
+        match = re.match(r'^rs(\d+)$', rsid.strip())
+        return int(match.group(1)) if match else 0
 
     def _split_rsids(self, rsid_str: str) -> List[str]:
         """
@@ -89,115 +131,170 @@ class RsidProcessor:
         total_files: int = 1
     ) -> List[Dict[str, str]]:
         """
-        Process a single individual file and generate output files for each output column.
-        Returns list of output file information.
+        Process a single individual file with optimized workflow.
+        New logic:
+        1. Check if SNP Name is already in rs000 format first
+        2. Only look up conversion if not in rs format
+        3. Collect unique RSID/CHROMOSOME/POSITION combinations
+        4. Sort by rs number before output
+        5. Memory-efficient processing with chunking
         """
         output_files_info = []
 
         # Create output directory
         os.makedirs(output_dir, exist_ok=True)
 
-        # Create output file writers for each output column
-        output_writers = {}
-        output_file_handles = {}
+        # Dictionary to store unique combinations: {(rsid, chromosome, position): {output_col: result}}
+        unique_combinations = {}
+        processed_rows = 0
+        total_rows = self._count_file_lines(individual_file_path) - 1  # Exclude header
 
         try:
-            for output_col in output_columns:
-                # Generate output filename using individualfilename+date+time format
-                datetime_stamp = datetime.now().strftime('%Y%m%d%H%M%S')
-                output_filename = f"{individual_name}_{output_col}_{datetime_stamp}.txt"
-                output_file_path = os.path.join(output_dir, output_filename)
-
-                # Open output file and create CSV writer
-                output_file_handles[output_col] = open(output_file_path, 'w', encoding='utf-8', newline='')
-                output_writers[output_col] = csv.writer(output_file_handles[output_col], delimiter='\t')
-
-                # Write header
-                output_writers[output_col].writerow(['RSID', 'CHROMOSOME', 'POSITION', 'RESULT'])
-
-                # Store file info
-                output_files_info.append({
-                    'name': output_col,
-                    'filename': output_filename,
-                    'file_path': output_file_path
-                })
-
-            # Process individual file
-            processed_rows = 0
-            total_rows = self._count_file_lines(individual_file_path) - 1  # Exclude header
-
             with open(individual_file_path, 'r', encoding='utf-8') as file:
-                # Skip header
-                header = file.readline()
-                columns = header.strip().split('\t')
+                # Read header
+                header = file.readline().strip()
+                columns = header.split('\t')
 
-                # Process each data row
+                # Process file in chunks for memory efficiency
+                chunk_buffer = []
+
                 for line in file:
                     line = line.strip()
                     if not line:
                         continue
 
-                    parts = line.split('\t')
-                    if len(parts) < len(columns):
-                        continue
+                    chunk_buffer.append(line)
 
-                    # Extract basic information
-                    snp_name = parts[0].strip()
-                    name = parts[0].strip()  # SNP Name is the same column
-                    chromosome = parts[1].strip()
-                    position = parts[2].strip()
+                    # Process chunk when buffer is full
+                    if len(chunk_buffer) >= self.CHUNK_SIZE:
+                        processed_rows += len(chunk_buffer)
+                        self._process_chunk(chunk_buffer, columns, conversion_mapping, output_columns, unique_combinations)
+                        chunk_buffer = []
 
-                    # Look up RsID in conversion mapping
-                    rsid_str = conversion_mapping.get(name)
-                    if not rsid_str:
-                        continue
+                        # Trigger garbage collection to free memory
+                        gc.collect()
 
-                    # Split RsIDs if multiple
-                    rsids = self._split_rsids(rsid_str)
-                    if not rsids:
-                        continue
+                        # Update progress
+                        if processed_rows % self.PROGRESS_UPDATE_INTERVAL == 0:
+                            file_progress = (processed_rows / total_rows) * 100 if total_rows > 0 else 100
+                            self._update_job_progress(job_id, current_file_index, total_files, file_progress, db_session)
 
-                    # Process each output column
-                    for i, output_col in enumerate(output_columns):
-                        col_index = 3 + i  # Skip first 3 columns (SNP Name, Chr, Position)
-                        if col_index >= len(parts):
-                            continue
+                # Process remaining rows in buffer
+                if chunk_buffer:
+                    self._process_chunk(chunk_buffer, columns, conversion_mapping, output_columns, unique_combinations)
+                    processed_rows += len(chunk_buffer)
 
-                        result = parts[col_index].strip()
+            # Generate sorted output files for each output column
+            for output_col in output_columns:
+                output_filename = f"{individual_name}_{output_col}_{datetime.now().strftime('%Y%m%d%H%M%S')}.txt"
+                output_file_path = os.path.join(output_dir, output_filename)
 
-                        # Skip if result is '--'
-                        if result == '--':
-                            continue
+                self._write_sorted_output_file(unique_combinations, output_col, output_file_path)
 
-                        # Write row for each RsID
-                        for rsid in rsids:
-                            output_writers[output_col].writerow([rsid, chromosome, position, result])
-
-                    processed_rows += 1
-
-                    # Update progress
-                    if processed_rows % self.PROGRESS_UPDATE_INTERVAL == 0:
-                        file_progress = (processed_rows / total_rows) * 100 if total_rows > 0 else 100
-                        self._update_job_progress(job_id, current_file_index, total_files, file_progress, db_session)
+                # Store file info
+                output_files_info.append({
+                    'name': output_col,
+                    'filename': output_filename,
+                    'file_path': output_file_path,
+                    'file_size': os.path.getsize(output_file_path) if os.path.exists(output_file_path) else 0
+                })
 
             # Final progress update for this file
-            file_progress = 100  # File is complete
-            self._update_job_progress(job_id, current_file_index, total_files, file_progress, db_session)
+            self._update_job_progress(job_id, current_file_index, total_files, 100, db_session)
 
-        finally:
-            # Flush and close all output files
-            for handle in output_file_handles.values():
-                handle.flush()
-                handle.close()
-
-        # Update file sizes
-        for file_info in output_files_info:
-            if os.path.exists(file_info['file_path']):
-                file_info['file_size'] = os.path.getsize(file_info['file_path'])
-            else:
-                file_info['file_size'] = 0
+        except Exception as e:
+            print(f"Error processing individual file {individual_file_path}: {str(e)}")
+            raise
 
         return output_files_info
+
+    def _process_chunk(
+        self,
+        chunk_buffer: List[str],
+        columns: List[str],
+        conversion_mapping: Dict[str, str],
+        output_columns: List[str],
+        unique_combinations: Dict[Tuple[str, str, str], Dict[str, str]]
+    ) -> None:
+        """
+        Process a chunk of rows and update unique_combinations dictionary.
+        """
+        for line in chunk_buffer:
+            parts = line.split('\t')
+            if len(parts) < len(columns):
+                continue
+
+            # Extract basic information
+            snp_name = parts[0].strip()
+            chromosome = parts[1].strip()
+            position = parts[2].strip()
+
+            # Step 1: Check if SNP Name is already in rs000 format
+            if self._is_rsid_format(snp_name):
+                rsids = [snp_name]
+            else:
+                # Step 2: Look up RsID in conversion mapping
+                rsid_str = conversion_mapping.get(snp_name)
+                if not rsid_str:
+                    continue  # Skip if not found
+
+                # Split RsIDs if multiple
+                rsids = self._split_rsids(rsid_str)
+                if not rsids:
+                    continue
+
+            # Process each output column for this row
+            for i, output_col in enumerate(output_columns):
+                col_index = 3 + i  # Skip first 3 columns (SNP Name, Chr, Position)
+                if col_index >= len(parts):
+                    continue
+
+                result = parts[col_index].strip()
+
+                # Skip if result is '--'
+                if result == '--':
+                    continue
+
+                # Step 3: Store unique combinations (avoid duplicates)
+                for rsid in rsids:
+                    key = (rsid, chromosome, position)
+                    if key not in unique_combinations:
+                        unique_combinations[key] = {}
+
+                    # Only store the result if not already present (RSID/CHROMOSOME/POSITION are the same)
+                    if output_col not in unique_combinations[key]:
+                        unique_combinations[key][output_col] = result
+
+    def _write_sorted_output_file(
+        self,
+        unique_combinations: Dict[Tuple[str, str, str], Dict[str, str]],
+        output_col: str,
+        output_file_path: str
+    ) -> None:
+        """
+        Write sorted output file for a specific output column.
+        Step 4: Sort by rs number in ascending order.
+        """
+        # Collect rows for this output column
+        rows_to_write = []
+
+        for (rsid, chromosome, position), results in unique_combinations.items():
+            if output_col in results:
+                rows_to_write.append((rsid, chromosome, position, results[output_col]))
+
+        # Step 4: Sort by rs number (extract numeric part)
+        rows_to_write.sort(key=lambda row: self._extract_rs_number(row[0]))
+
+        # Write to file
+        with open(output_file_path, 'w', encoding='utf-8', newline='') as file:
+            writer = csv.writer(file, delimiter='\t')
+
+            # Write header
+            writer.writerow(['RSID', 'CHROMOSOME', 'POSITION', 'RESULT'])
+
+            # Write sorted data
+            for row in rows_to_write:
+                writer.writerow(row)
 
     def _count_file_lines(self, file_path: str) -> int:
         """Count total lines in a file for progress tracking."""
