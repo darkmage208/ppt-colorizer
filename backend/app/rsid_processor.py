@@ -91,12 +91,20 @@ class RsidProcessor:
             # Return output columns (skip first 3: SNP Name, Chr, Position)
             return columns[3:]
 
-    def _is_rsid_format(self, snp_name: str) -> bool:
+    def _extract_rsids_from_snp_name(self, snp_name: str) -> List[str]:
         """
-        Check if SNP name is already in rs000 format.
-        Returns True if the name starts with 'rs' followed by numbers.
+        Extract rs IDs from SNP name if it contains rs format.
+        Returns list of rs IDs found in the SNP name.
+        Examples:
+        - "rs123456" -> ["rs123456"]
+        - "1:110228436_rs123456" -> ["rs123456"]
+        - "rs123_rs456" -> ["rs123", "rs456"]
+        - "1:103380393" -> []
         """
-        return bool(re.match(r'^rs\d+$', snp_name.strip()))
+        snp_name = snp_name.strip()
+        # Find all rs followed by digits in the SNP name
+        rs_matches = re.findall(r'rs\d+', snp_name)
+        return rs_matches
 
     def _extract_rs_number(self, rsid: str) -> int:
         """
@@ -229,9 +237,12 @@ class RsidProcessor:
             chromosome = parts[1].strip()
             position = parts[2].strip()
 
-            # Step 1: Check if SNP Name is already in rs000 format
-            if self._is_rsid_format(snp_name):
-                rsids = [snp_name]
+            # Step 1: Extract rs IDs from SNP name if it contains rs format
+            rsids_from_name = self._extract_rsids_from_snp_name(snp_name)
+
+            if rsids_from_name:
+                # Use rs IDs found in the SNP name directly
+                rsids = rsids_from_name
             else:
                 # Step 2: Look up RsID in conversion mapping
                 rsid_str = conversion_mapping.get(snp_name)
