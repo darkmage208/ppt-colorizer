@@ -42,4 +42,16 @@ chmod 600 nginx/ssl/privkey.pem
 
 echo "✅ SSL certificates installed successfully!"
 echo ""
+echo "🔄 Setting up automatic certificate renewal..."
+
+# Enable and start certbot systemd timer for auto-renewal
+sudo systemctl enable certbot.timer
+sudo systemctl start certbot.timer
+
+echo "✅ Automatic renewal configured!"
+echo "📋 Certificate will auto-renew every 12 hours"
+echo ""
+echo "To check renewal status: sudo systemctl status certbot.timer"
+echo "To test renewal: sudo certbot renew --dry-run"
+echo ""
 echo "Now run: docker compose up -d"
