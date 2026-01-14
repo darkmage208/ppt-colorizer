@@ -84,7 +84,7 @@ class Job(JobBase):
     id: int
     user_id: int
     txt_filename: str
-    txt_file_path: str
+    txt_file_path: Optional[str] = None
     status: JobStatus
     output_pptx_path: Optional[str] = None
     output_pdf_path: Optional[str] = None
