@@ -30,12 +30,12 @@ const Dashboard = () => {
       const [templatesRes, excelRes, jobsRes] = await Promise.all([
         api.get('/templates/'),
         api.get('/excel-data/'),
-        api.get('/jobs/?limit=3')
+        api.get('/jobs/?page=1&page_size=3')
       ])
 
       setTemplates(templatesRes.data)
       setExcelData(excelRes.data)
-      setRecentJobs(jobsRes.data)
+      setRecentJobs(jobsRes.data.items)
     } catch (error) {
       toast.error('Failed to fetch data')
     } finally {
@@ -45,8 +45,8 @@ const Dashboard = () => {
 
   const fetchJobs = async () => {
     try {
-      const response = await api.get('/jobs/?limit=3')
-      setRecentJobs(response.data)
+      const response = await api.get('/jobs/?page=1&page_size=3')
+      setRecentJobs(response.data.items)
     } catch (error) {
       console.error('Failed to fetch jobs:', error)
     }

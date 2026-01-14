@@ -4,7 +4,11 @@ from sqlalchemy import create_engine
 from .config import settings
 from .models import Job, JobStatus, User
 from .ppt_processor import PPTProcessor
+from .storage import storage
 import traceback
+import logging
+
+logger = logging.getLogger(__name__)
 
 celery_app = Celery(
     "ppt_colorizer",
@@ -88,6 +92,16 @@ def process_ppt_job(job_id: int):
                 print(f"PDF conversion failed: {str(pdf_error)}")
 
             job.status = JobStatus.DONE
+
+            # Delete TXT file from R2 after successful processing to save storage
+            if job.txt_file_path:
+                try:
+                    storage.delete_file(job.txt_file_path)
+                    logger.info(f"Deleted TXT file from R2: {job.txt_file_path}")
+                    job.txt_file_path = None  # Clear the path since file is deleted
+                except Exception as delete_error:
+                    logger.warning(f"Failed to delete TXT file from R2: {delete_error}")
+                    # Don't fail the job if deletion fails
 
             # Increment user's processing count
             user = db.query(User).filter(User.id == job.user_id).first()
