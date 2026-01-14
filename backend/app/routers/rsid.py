@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, BackgroundTasks, Form
 from fastapi.responses import FileResponse, StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from typing import List, Optional
 import os
 import uuid
@@ -372,7 +372,12 @@ def list_conversion_jobs(
     db: Session = Depends(get_db)
 ):
     """List all conversion jobs with details (SuperAdmin only)"""
-    jobs = db.query(ConversionJob).order_by(
+    # Use eager loading to avoid N+1 queries
+    jobs = db.query(ConversionJob).options(
+        selectinload(ConversionJob.conversion_file),
+        selectinload(ConversionJob.creator),
+        selectinload(ConversionJob.result_groups).selectinload(ResultGroup.result_files)
+    ).order_by(
         ConversionJob.created_at.desc()
     ).offset(skip).limit(limit).all()
     return jobs
@@ -384,7 +389,12 @@ def get_conversion_job(
     db: Session = Depends(get_db)
 ):
     """Get conversion job details with progress (SuperAdmin only)"""
-    job = db.query(ConversionJob).filter(ConversionJob.id == job_id).first()
+    # Use eager loading to avoid N+1 queries
+    job = db.query(ConversionJob).options(
+        selectinload(ConversionJob.conversion_file),
+        selectinload(ConversionJob.creator),
+        selectinload(ConversionJob.result_groups).selectinload(ResultGroup.result_files)
+    ).filter(ConversionJob.id == job_id).first()
 
     if not job:
         raise HTTPException(
@@ -447,7 +457,10 @@ def list_all_result_groups(
     db: Session = Depends(get_db)
 ):
     """List all result groups across all jobs (SuperAdmin only)"""
-    groups = db.query(ResultGroup).filter(
+    # Use eager loading to avoid N+1 queries
+    groups = db.query(ResultGroup).options(
+        selectinload(ResultGroup.result_files)
+    ).filter(
         ResultGroup.is_active == True
     ).order_by(ResultGroup.created_at.desc()).offset(skip).limit(limit).all()
     return groups
@@ -459,7 +472,10 @@ def get_result_group(
     db: Session = Depends(get_db)
 ):
     """Get a specific result group with its files (SuperAdmin only)"""
-    group = db.query(ResultGroup).filter(
+    # Use eager loading to avoid N+1 queries
+    group = db.query(ResultGroup).options(
+        selectinload(ResultGroup.result_files)
+    ).filter(
         ResultGroup.id == group_id,
         ResultGroup.is_active == True
     ).first()
@@ -479,7 +495,10 @@ def list_result_groups(
     db: Session = Depends(get_db)
 ):
     """List result groups for a job (SuperAdmin only)"""
-    groups = db.query(ResultGroup).filter(
+    # Use eager loading to avoid N+1 queries
+    groups = db.query(ResultGroup).options(
+        selectinload(ResultGroup.result_files)
+    ).filter(
         ResultGroup.job_id == job_id,
         ResultGroup.is_active == True
     ).all()

@@ -1,7 +1,9 @@
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import func as sql_func
+from pydantic import BaseModel
 from .. import schemas, models, auth
 from ..database import get_db
 from ..storage import storage
@@ -14,29 +16,74 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
-@router.get("/", response_model=List[schemas.JobWithDetails])
+
+# Paginated response schema
+class PaginatedJobsResponse(BaseModel):
+    items: List[schemas.JobWithDetails]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/", response_model=PaginatedJobsResponse)
 def get_jobs(
-    skip: int = 0,
-    limit: int = 100,
-    sort_by: str = "created_at",
-    order: str = "desc",
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    sort_by: str = Query("created_at", description="Sort field"),
+    order: str = Query("desc", description="Sort order (asc/desc)"),
+    status: Optional[str] = Query(None, description="Filter by status"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
-    query = db.query(models.Job)
+    # Base query with eager loading to avoid N+1 queries
+    query = db.query(models.Job).options(
+        selectinload(models.Job.user),
+        selectinload(models.Job.template),
+        selectinload(models.Job.excel_data),
+        selectinload(models.Job.permissions)
+    )
 
     # Filter by user role and permissions
     if current_user.role == models.UserRole.USER:
         # Users can only see jobs they own or have explicit permission to access
+        permitted_job_ids = db.query(models.JobPermission.job_id).filter(
+            models.JobPermission.user_id == current_user.id
+        ).subquery()
         query = query.filter(
             (models.Job.user_id == current_user.id) |
-            (models.Job.id.in_(
-                db.query(models.JobPermission.job_id)
-                .filter(models.JobPermission.user_id == current_user.id)
-                .subquery()
-            ))
+            (models.Job.id.in_(permitted_job_ids))
         )
     # Admins and Superadmins can see all jobs (no additional filtering)
+
+    # Apply status filter if provided
+    if status and status != 'all':
+        try:
+            status_enum = models.JobStatus(status)
+            query = query.filter(models.Job.status == status_enum)
+        except ValueError:
+            pass  # Invalid status, ignore filter
+
+    # Get total count for pagination (without eager loading for efficiency)
+    count_query = db.query(sql_func.count(models.Job.id))
+    if current_user.role == models.UserRole.USER:
+        permitted_job_ids = db.query(models.JobPermission.job_id).filter(
+            models.JobPermission.user_id == current_user.id
+        ).subquery()
+        count_query = count_query.filter(
+            (models.Job.user_id == current_user.id) |
+            (models.Job.id.in_(permitted_job_ids))
+        )
+    if status and status != 'all':
+        try:
+            status_enum = models.JobStatus(status)
+            count_query = count_query.filter(models.Job.status == status_enum)
+        except ValueError:
+            pass
+    total = count_query.scalar()
 
     # Apply sorting
     if sort_by == "id":
@@ -53,8 +100,20 @@ def get_jobs(
     else:
         query = query.order_by(sort_column.desc())
 
-    jobs = query.offset(skip).limit(limit).all()
-    return jobs
+    # Apply pagination
+    skip = (page - 1) * page_size
+    jobs = query.offset(skip).limit(page_size).all()
+
+    # Calculate total pages
+    total_pages = (total + page_size - 1) // page_size if total > 0 else 1
+
+    return PaginatedJobsResponse(
+        items=jobs,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages
+    )
 
 @router.post("/", response_model=schemas.Job)
 async def create_job(

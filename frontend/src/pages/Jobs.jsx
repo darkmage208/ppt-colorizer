@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import api from '../utils/api'
 import toast from 'react-hot-toast'
-import { Clock, CheckCircle, XCircle, AlertCircle, FileText, Download, Calendar, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Clock, CheckCircle, XCircle, AlertCircle, FileText, Download, Calendar, Trash2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { useAuth } from '../contexts/AuthContext'
 import { getFilenameWithoutExtension } from '../utils/util'
@@ -16,21 +16,41 @@ const Jobs = () => {
   const [deletingJob, setDeletingJob] = useState(null)
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, jobId: null, jobInfo: null })
 
-  useEffect(() => {
-    fetchJobs()
-    const interval = setInterval(fetchJobs, 5000) // Poll every 5 seconds
-    return () => clearInterval(interval)
-  }, [sortBy, sortOrder])
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [totalItems, setTotalItems] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
 
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     try {
-      const response = await api.get(`/jobs/?limit=100&sort_by=${sortBy}&order=${sortOrder}`)
-      setJobs(response.data)
+      const statusParam = filter !== 'all' ? `&status=${filter}` : ''
+      const response = await api.get(`/jobs/?page=${currentPage}&page_size=${pageSize}&sort_by=${sortBy}&order=${sortOrder}${statusParam}`)
+      setJobs(response.data.items)
+      setTotalItems(response.data.total)
+      setTotalPages(response.data.total_pages)
     } catch (error) {
       toast.error('Failed to fetch jobs')
     } finally {
       setLoading(false)
     }
+  }, [currentPage, pageSize, sortBy, sortOrder, filter])
+
+  useEffect(() => {
+    fetchJobs()
+    const interval = setInterval(fetchJobs, 5000) // Poll every 5 seconds
+    return () => clearInterval(interval)
+  }, [fetchJobs])
+
+  // Reset to page 1 when filter or sort changes
+  const handleFilterChange = (newFilter) => {
+    setFilter(newFilter)
+    setCurrentPage(1)
+  }
+
+  const handleSortChange = (newSortBy) => {
+    setSortBy(newSortBy)
+    setCurrentPage(1)
   }
 
   const getStatusIcon = (status) => {
@@ -140,24 +160,51 @@ const Jobs = () => {
 
   const canDeleteJob = (job) => {
     if (!user) return false
-    
+
     // Superadmins and admins can delete any job
     if (user.role === 'superadmin' || user.role === 'admin') {
       return true
     }
-    
+
     // Users can delete their own jobs
     if (user.role === 'user' && (job.user_id === user.id || job.user?.id === user.id)) {
       return true
     }
-    
+
     return false
   }
 
-  const filteredJobs = jobs.filter(job => {
-    if (filter === 'all') return true
-    return job.status === filter
-  })
+  // Pagination handlers
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page)
+    }
+  }
+
+  const goToFirstPage = () => goToPage(1)
+  const goToLastPage = () => goToPage(totalPages)
+  const goToPrevPage = () => goToPage(currentPage - 1)
+  const goToNextPage = () => goToPage(currentPage + 1)
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages = []
+    const maxVisiblePages = 5
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2))
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1)
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i)
+    }
+    return pages
+  }
+
+  // Jobs are already filtered server-side, no client-side filtering needed
+  const filteredJobs = jobs
 
   if (loading) {
     return (
@@ -184,7 +231,7 @@ const Jobs = () => {
                 <label className="text-sm font-medium text-gray-700 dark:text-dark-text">Sort by:</label>
                 <select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
+                  onChange={(e) => handleSortChange(e.target.value)}
                   className="border border-gray-200 dark:border-dark-border rounded-xl px-4 py-2 text-sm bg-white/50 dark:bg-dark-bg text-gray-900 dark:text-dark-text backdrop-blur-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent dark:focus:ring-emerald-400 transition-all duration-200"
                 >
                   <option value="created_at">Date Created</option>
@@ -204,7 +251,7 @@ const Jobs = () => {
                 <label className="text-sm font-medium text-gray-700 dark:text-dark-text">Filter:</label>
                 <select
                   value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
+                  onChange={(e) => handleFilterChange(e.target.value)}
                   className="border border-gray-200 dark:border-dark-border rounded-xl px-4 py-2 text-sm bg-white/50 dark:bg-dark-bg text-gray-900 dark:text-dark-text backdrop-blur-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent dark:focus:ring-emerald-400 transition-all duration-200"
                 >
                   <option value="all">All Jobs</option>
@@ -395,6 +442,90 @@ const Jobs = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalItems > 0 && (
+          <div className="px-6 py-4 border-t border-gray-100/50 dark:border-dark-border">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              {/* Items info and page size selector */}
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-600 dark:text-dark-muted">
+                  Showing {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, totalItems)} of {totalItems} jobs
+                </span>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-600 dark:text-dark-muted">Per page:</label>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value))
+                      setCurrentPage(1)
+                    }}
+                    className="border border-gray-200 dark:border-dark-border rounded-lg px-2 py-1 text-sm bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Page navigation */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={goToFirstPage}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border border-gray-200 dark:border-dark-border hover:bg-emerald-50 dark:hover:bg-dark-hover hover:border-emerald-300 dark:hover:border-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:border-gray-200 transition-all duration-200"
+                  title="First page"
+                >
+                  <ChevronsLeft className="h-4 w-4 text-gray-600 dark:text-dark-muted" />
+                </button>
+                <button
+                  onClick={goToPrevPage}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border border-gray-200 dark:border-dark-border hover:bg-emerald-50 dark:hover:bg-dark-hover hover:border-emerald-300 dark:hover:border-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:border-gray-200 transition-all duration-200"
+                  title="Previous page"
+                >
+                  <ChevronLeft className="h-4 w-4 text-gray-600 dark:text-dark-muted" />
+                </button>
+
+                {/* Page numbers */}
+                <div className="flex items-center gap-1 mx-2">
+                  {getPageNumbers().map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      onClick={() => goToPage(pageNum)}
+                      className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        pageNum === currentPage
+                          ? 'bg-emerald-600 text-white border border-emerald-600 dark:bg-emerald-500 dark:border-emerald-500'
+                          : 'border border-gray-200 dark:border-dark-border text-gray-700 dark:text-dark-text hover:bg-emerald-50 dark:hover:bg-dark-hover hover:border-emerald-300 dark:hover:border-emerald-400'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={goToNextPage}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border border-gray-200 dark:border-dark-border hover:bg-emerald-50 dark:hover:bg-dark-hover hover:border-emerald-300 dark:hover:border-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:border-gray-200 transition-all duration-200"
+                  title="Next page"
+                >
+                  <ChevronRight className="h-4 w-4 text-gray-600 dark:text-dark-muted" />
+                </button>
+                <button
+                  onClick={goToLastPage}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border border-gray-200 dark:border-dark-border hover:bg-emerald-50 dark:hover:bg-dark-hover hover:border-emerald-300 dark:hover:border-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:border-gray-200 transition-all duration-200"
+                  title="Last page"
+                >
+                  <ChevronsRight className="h-4 w-4 text-gray-600 dark:text-dark-muted" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Professional Confirm Dialog */}
